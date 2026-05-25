@@ -494,9 +494,13 @@ footer a { color: var(--muted); }
 
 /* ===== RESPONSIVE ===== */
 @media (max-width: 700px) {
+    main { padding: 16px 14px 48px; }
+
     .metrics-grid {
         grid-template-columns: repeat(2, 1fr);
     }
+
+    .metric-value { font-size: 40px; }
 
     .hero-alert {
         flex-direction: column;
@@ -505,19 +509,35 @@ footer a { color: var(--muted); }
         text-align: center;
     }
 
-    .hero-alert .big-icon { font-size: 52px; }
+    .hero-alert .big-icon  { font-size: 52px; }
     .hero-alert .hero-level { font-size: 40px; }
 
+    /* bottom-grid を縦積みに */
     .bottom-grid {
         grid-template-columns: 1fr;
     }
 
-    .metric-value { font-size: 40px; }
+    /* 予報：横スクロールをやめてグリッド折り返しに */
+    .forecast-scroll {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 8px;
+        overflow-x: visible;
+        padding-bottom: 0;
+    }
 
-    main { padding: 16px 14px 48px; }
+    .forecast-item {
+        flex: none;
+        width: 100%;
+    }
 }
 
 @media (max-width: 400px) {
     .metrics-grid { grid-template-columns: repeat(2, 1fr); }
     .metric-value { font-size: 36px; }
+
+    /* 極小画面は2列に */
+    .forecast-scroll {
+        grid-template-columns: repeat(2, 1fr);
+    }
 }
