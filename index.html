@@ -3,46 +3,44 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="現在地の気温・湿度・WBGT（暑さ指数）をリアルタイムで表示し、熱中症リスクをお知らせします。">
     <title>熱中症リスクモニター</title>
     <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
 
-<!-- ===== HEADER ===== -->
 <header>
-    <div class="header-title">
+    <div class="header-left">
         <span class="icon">🌡️</span>
         <div>
             <h1>熱中症リスクモニター</h1>
             <p>現在地の暑さ指数（WBGT）をリアルタイム表示</p>
         </div>
     </div>
-    <div class="header-time">
+    <div class="header-right">
         <div class="time" id="clock">--:--</div>
         <div class="date" id="clock-date"></div>
     </div>
 </header>
 
-<!-- ===== LOADING ===== -->
+<!-- LOADING -->
 <div class="state-screen" id="loading">
     <div class="spinner"></div>
     <h2>位置情報を取得中...</h2>
     <p>ブラウザから位置情報の使用許可を求められたら「許可」を選択してください。</p>
 </div>
 
-<!-- ===== ERROR ===== -->
+<!-- ERROR -->
 <div class="state-screen" id="error" style="display:none">
     <div class="state-icon">📡</div>
     <h2>データを取得できません</h2>
-    <p id="error-msg">位置情報の取得に失敗しました。</p>
+    <p id="error-msg"></p>
     <button class="btn-primary" id="btn-retry">再試行する</button>
 </div>
 
-<!-- ===== APP ===== -->
+<!-- APP -->
 <main id="app" style="display:none">
 
-    <!-- 位置情報バー -->
+    <!-- 位置バー -->
     <div class="location-bar">
         <div class="location-info">
             <span class="pin">📍</span>
@@ -54,38 +52,43 @@
         <button class="btn-reload" id="btn-reload">🔄 更新</button>
     </div>
 
-    <!-- アラートバナー -->
-    <div class="alert-banner" id="alert-banner">
-        <span class="alert-icon" id="alert-icon">--</span>
-        <div>
-            <div class="alert-label" id="alert-label">現在の熱中症危険度</div>
-            <div id="alert-text">取得中...</div>
+    <!-- ヒーローアラート（最重要） -->
+    <div class="hero-alert" id="hero-alert">
+        <div class="big-icon" id="hero-icon">--</div>
+        <div class="hero-text">
+            <div class="hero-label" id="hero-label">現在の熱中症危険度</div>
+            <div class="hero-level" id="hero-level">--</div>
+            <div class="hero-desc" id="hero-desc"></div>
         </div>
     </div>
 
     <!-- メトリクス -->
     <div class="metrics-grid">
-        <div class="metric-card wbgt" id="wbgt-card">
+        <div class="metric-card wbgt">
+            <div class="metric-emoji">🌡️</div>
             <div class="metric-label">暑さ指数 WBGT</div>
             <div class="metric-value" id="val-wbgt">--<span class="metric-unit">°C</span></div>
         </div>
         <div class="metric-card temp">
+            <div class="metric-emoji">☀️</div>
             <div class="metric-label">気温</div>
             <div class="metric-value" id="val-temp">--<span class="metric-unit">°C</span></div>
         </div>
         <div class="metric-card humidity">
+            <div class="metric-emoji">💧</div>
             <div class="metric-label">湿度</div>
             <div class="metric-value" id="val-humid">--<span class="metric-unit">%</span></div>
         </div>
         <div class="metric-card wind">
+            <div class="metric-emoji">💨</div>
             <div class="metric-label">風速</div>
             <div class="metric-value" id="val-wind">--<span class="metric-unit">m/s</span></div>
         </div>
     </div>
 
-    <!-- WBGTゲージ -->
-    <div class="wbgt-section">
-        <h3>🌡 WBGT レベルゲージ</h3>
+    <!-- ゲージ -->
+    <div class="gauge-section">
+        <div class="gauge-title">🌈 WBGT レベルゲージ</div>
         <div class="gauge-track">
             <div class="gauge-needle" id="gauge-needle" style="left:0%"></div>
         </div>
@@ -98,34 +101,24 @@
         </div>
     </div>
 
-    <!-- 時間帯予報 + アドバイス -->
+    <!-- 予報 + アドバイス -->
     <div class="bottom-grid">
-
-        <!-- 時間帯予報 -->
         <div class="forecast-section">
-            <h3>⏱ 時間帯別予報（本日）</h3>
-            <div class="forecast-scroll" id="forecast-items">
-                <!-- JSで生成 -->
-            </div>
+            <div class="section-title">⏱ 時間帯別予報（本日）</div>
+            <div class="forecast-scroll" id="forecast-items"></div>
         </div>
-
-        <!-- アドバイス -->
         <div class="advice-section">
-            <h3>💡 対策アドバイス</h3>
-            <ul class="advice-list" id="advice-list">
-                <!-- JSで生成 -->
-            </ul>
+            <div class="section-title">💡 対策アドバイス</div>
+            <ul class="advice-list" id="advice-list"></ul>
         </div>
-
     </div>
 
 </main>
 
-<!-- ===== FOOTER ===== -->
 <footer>
     <span id="last-update">--</span>　／　
-    気象データ：<a href="https://open-meteo.com/" target="_blank" rel="noopener" style="color:inherit">Open-Meteo</a>（無料・APIキー不要）　／　
-    WBGT：環境省基準に基づく近似計算値
+    気象データ：<a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo</a>（無料・APIキー不要）　／　
+    WBGT は環境省基準に基づく近似計算値です
 </footer>
 
 <script src="js/script.js"></script>
