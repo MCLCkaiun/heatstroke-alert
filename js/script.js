@@ -1,7 +1,6 @@
-// ===== 定数 =====
 const OPEN_METEO = 'https://api.open-meteo.com/v1/forecast';
 
-// WBGT 近似式（気温・湿度から算出 / 環境省方式に準拠）
+// WBGT近似式（環境省方式）
 function calcWBGT(temp, humidity) {
     const tw = temp * Math.atan(0.151977 * Math.pow(humidity + 8.313659, 0.5))
              + Math.atan(temp + humidity)
@@ -11,62 +10,61 @@ function calcWBGT(temp, humidity) {
     return 0.7 * tw + 0.2 * temp + 3;
 }
 
-// 危険度判定（環境省基準）
+// 危険度判定
 function getLevel(wbgt) {
-    if (wbgt < 21)      return { key: 'safe',    label: '安全',     icon: '✅', advice: '通常通り活動できます。' };
-    if (wbgt < 25)      return { key: 'caution', label: '注意',     icon: '⚠️', advice: '激しい運動の際は定期的に休憩を。' };
-    if (wbgt < 28)      return { key: 'warning', label: '警戒',     icon: '🔶', advice: '運動は30分ごとに休憩し、水分補給を怠らずに。' };
-    if (wbgt < 31)      return { key: 'danger',  label: '厳重警戒', icon: '🚨', advice: '激しい運動や作業は原則中止。こまめな水分・塩分補給を。' };
-    return               { key: 'severe',  label: '危険',     icon: '☠️', advice: '屋外作業は中止を強く推奨。涼しい場所に避難し水分補給してください。' };
+    if (wbgt < 21) return { key:'safe',    label:'安全',     icon:'✅', desc:'通常通り活動できます。引き続き水分補給を心がけてください。' };
+    if (wbgt < 25) return { key:'caution', label:'注意',     icon:'⚠️', desc:'激しい運動の際は定期的に水分補給と休憩を取ってください。' };
+    if (wbgt < 28) return { key:'warning', label:'警戒',     icon:'🔶', desc:'運動・作業は30分ごとに休憩。積極的に水分・塩分を補給してください。' };
+    if (wbgt < 31) return { key:'danger',  label:'厳重警戒', icon:'🚨', desc:'激しい作業は原則中止。こまめな水分・塩分補給と体調確認を徹底してください。' };
+    return          { key:'severe', label:'危険',     icon:'☠️', desc:'屋外作業は直ちに中止。涼しい場所に避難し、体調不良があればすぐに報告を。' };
 }
 
 // アドバイスリスト
-function getAdviceList(level) {
+function getAdviceList(levelKey) {
     const base = [
-        { icon: '💧', text: '30分ごとに水分補給（1回あたり200〜250ml）' },
-        { icon: '🧂', text: '発汗が多い場合は塩分も補給（塩飴・スポーツドリンクなど）' },
-        { icon: '🧢', text: '直射日光を避け、帽子・日傘を活用' },
+        { icon:'💧', text:'30分ごとに水分補給（1回あたり200〜250ml）' },
+        { icon:'🧂', text:'発汗が多い場合は塩分も補給（塩飴・スポーツドリンクなど）' },
+        { icon:'🧢', text:'直射日光を避け、帽子・日傘を活用する' },
     ];
     const extra = {
-        warning: [{ icon: '🕐', text: '30分ごとに涼しい場所で5〜10分の休憩を取る' }],
-        danger:  [{ icon: '🏥', text: 'めまい・頭痛が出たらすぐに作業を中断し報告' }, { icon: '🕐', text: '激しい作業は避け、こまめに体調確認を' }],
-        severe:  [{ icon: '🏥', text: '屋外作業は直ちに中断してください' }, { icon: '❄️', text: '冷たいタオルや氷で体を冷やし医療機関へ' }],
+        warning: [{ icon:'🕐', text:'30分ごとに涼しい場所で5〜10分休憩を取る' }],
+        danger:  [{ icon:'🕐', text:'こまめに体調確認し、めまい・頭痛が出たら即報告' },
+                  { icon:'🏥', text:'激しい作業は避け、無理な継続は禁物' }],
+        severe:  [{ icon:'🏥', text:'屋外作業を直ちに中断し涼しい場所へ移動' },
+                  { icon:'❄️', text:'冷たいタオルや氷で体を冷やし医療機関へ' }],
     };
-    return [...base, ...(extra[level.key] || [])];
+    return [...base, ...(extra[levelKey] || [])];
 }
 
-// ===== 時刻表示 =====
+// 時計
 function updateClock() {
     const now = new Date();
     const hh = String(now.getHours()).padStart(2,'0');
     const mm = String(now.getMinutes()).padStart(2,'0');
     const days = ['日','月','火','水','木','金','土'];
-    const dateStr = `${now.getFullYear()}年${now.getMonth()+1}月${now.getDate()}日（${days[now.getDay()]}）`;
     document.getElementById('clock').textContent = `${hh}:${mm}`;
-    document.getElementById('clock-date').textContent = dateStr;
+    document.getElementById('clock-date').textContent =
+        `${now.getFullYear()}年${now.getMonth()+1}月${now.getDate()}日（${days[now.getDay()]}）`;
 }
 setInterval(updateClock, 1000);
 updateClock();
 
-// ===== 逆ジオコーディング（無料） =====
+// 逆ジオコーディング
 async function getPlaceName(lat, lon) {
     try {
         const res = await fetch(
             `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json&accept-language=ja`
         );
         const d = await res.json();
-        const addr = d.address || {};
-        return addr.city || addr.town || addr.village || addr.county || addr.state || '現在地';
-    } catch {
-        return '現在地';
-    }
+        const a = d.address || {};
+        return a.city || a.town || a.village || a.county || a.state || '現在地';
+    } catch { return '現在地'; }
 }
 
-// ===== Open-Meteo からデータ取得 =====
+// 気象データ取得
 async function fetchWeather(lat, lon) {
     const params = new URLSearchParams({
-        latitude: lat,
-        longitude: lon,
+        latitude: lat, longitude: lon,
         hourly: 'temperature_2m,relativehumidity_2m,windspeed_10m',
         forecast_days: 1,
         timezone: 'Asia/Tokyo',
@@ -76,108 +74,92 @@ async function fetchWeather(lat, lon) {
     return res.json();
 }
 
-// ===== UI 更新 =====
+// UI描画
 function renderApp(data, lat, lon, placeName) {
     const now = new Date();
     const currentHour = now.getHours();
 
-    const hours   = data.hourly.time.map(t => parseInt(t.split('T')[1]));
-    const temps   = data.hourly.temperature_2m;
-    const humids  = data.hourly.relativehumidity_2m;
-    const winds   = data.hourly.windspeed_10m;
+    const hours  = data.hourly.time.map(t => parseInt(t.split('T')[1]));
+    const temps  = data.hourly.temperature_2m;
+    const humids = data.hourly.relativehumidity_2m;
+    const winds  = data.hourly.windspeed_10m;
 
-    // 現在時刻に最も近いインデックス
     let nowIdx = hours.indexOf(currentHour);
     if (nowIdx === -1) nowIdx = 0;
 
-    const temp   = temps[nowIdx];
-    const humid  = humids[nowIdx];
-    const wind   = winds[nowIdx];
-    const wbgt   = calcWBGT(temp, humid);
-    const level  = getLevel(wbgt);
+    const temp  = temps[nowIdx];
+    const humid = humids[nowIdx];
+    const wind  = winds[nowIdx];
+    const wbgt  = calcWBGT(temp, humid);
+    const level = getLevel(wbgt);
 
-    // ロード画面を非表示
     document.getElementById('loading').style.display = 'none';
     document.getElementById('error').style.display = 'none';
     document.getElementById('app').style.display = 'block';
 
-    // 位置情報
+    // 位置
     document.getElementById('place-name').textContent = placeName;
     document.getElementById('place-coords').textContent =
         `${lat.toFixed(4)}°N, ${lon.toFixed(4)}°E`;
 
-    // アラートバナー
-    const banner = document.getElementById('alert-banner');
-    banner.className = `alert-banner alert-${level.key}`;
-    document.getElementById('alert-icon').textContent = level.icon;
-    document.getElementById('alert-label').textContent = '現在の熱中症危険度';
-    document.getElementById('alert-text').textContent = `${level.label}（WBGT ${wbgt.toFixed(1)}°C）`;
+    // ヒーロー
+    const hero = document.getElementById('hero-alert');
+    hero.className = `hero-alert hero-${level.key}`;
+    document.getElementById('hero-icon').textContent  = level.icon;
+    document.getElementById('hero-label').textContent = `現在の熱中症危険度 — WBGT ${wbgt.toFixed(1)}°C`;
+    document.getElementById('hero-level').textContent = level.label;
+    document.getElementById('hero-desc').textContent  = level.desc;
 
     // メトリクス
-    document.getElementById('val-wbgt').textContent   = wbgt.toFixed(1);
-    document.getElementById('val-temp').textContent   = temp.toFixed(1);
-    document.getElementById('val-humid').textContent  = Math.round(humid);
-    document.getElementById('val-wind').textContent   = wind.toFixed(1);
+    document.getElementById('val-wbgt').innerHTML  = `${wbgt.toFixed(1)}<span class="metric-unit">°C</span>`;
+    document.getElementById('val-temp').innerHTML  = `${temp.toFixed(1)}<span class="metric-unit">°C</span>`;
+    document.getElementById('val-humid').innerHTML = `${Math.round(humid)}<span class="metric-unit">%</span>`;
+    document.getElementById('val-wind').innerHTML  = `${wind.toFixed(1)}<span class="metric-unit">m/s</span>`;
 
-    // WBGT 色変化
-    const wbgtCard = document.getElementById('wbgt-card');
-    wbgtCard.style.setProperty('--accent',
-        wbgt < 21 ? 'var(--safe)' :
-        wbgt < 25 ? 'var(--caution)' :
-        wbgt < 28 ? 'var(--warning)' :
-        wbgt < 31 ? 'var(--danger)' : 'var(--severe)'
-    );
+    // ゲージ針（WBGT 0〜40°C → 0〜100%）
+    const pct = Math.min(100, Math.max(0, (wbgt / 40) * 100));
+    document.getElementById('gauge-needle').style.left = pct + '%';
 
-    // ゲージ針（0〜40°Cを0〜100%にマッピング）
-    const needlePct = Math.min(100, Math.max(0, (wbgt / 40) * 100));
-    document.getElementById('gauge-needle').style.left = needlePct + '%';
-
-    // 時間帯予報（現在〜+8時間、または全時間帯）
-    const forecastContainer = document.getElementById('forecast-items');
-    forecastContainer.innerHTML = '';
-
-    // 表示する時間帯を決定（現在から翌8時間または当日全時間）
-    const showHours = [];
-    for (let i = 0; i < data.hourly.time.length; i++) {
-        const h = parseInt(data.hourly.time[i].split('T')[1]);
-        if (h >= currentHour) showHours.push(i);
+    // 予報
+    const fc = document.getElementById('forecast-items');
+    fc.innerHTML = '';
+    const showIdxs = [];
+    for (let i = 0; i < hours.length; i++) {
+        if (hours[i] >= currentHour) showIdxs.push(i);
     }
-    const targets = showHours.slice(0, 9); // 最大9時間
-
-    targets.forEach((idx, i) => {
-        const h = hours[idx];
-        const t = temps[idx];
+    showIdxs.slice(0, 9).forEach(idx => {
+        const h  = hours[idx];
+        const t  = temps[idx];
         const hu = humids[idx];
-        const w = calcWBGT(t, hu);
+        const w  = calcWBGT(t, hu);
         const lv = getLevel(w);
         const isNow = (idx === nowIdx);
 
         const el = document.createElement('div');
-        el.className = `forecast-item level-${lv.key}${isNow ? ' active' : ''}`;
+        el.className = `forecast-item lv-${lv.key}${isNow ? ' now-item' : ''}`;
         el.innerHTML = `
-            <div class="forecast-time">${isNow ? '今' : String(h).padStart(2,'0') + ':00'}</div>
-            <div class="forecast-temp">${t.toFixed(0)}<span style="font-size:11px;font-family:var(--font-body)">°</span></div>
-            <div class="forecast-wbgt-badge badge-${lv.key}">${lv.label}</div>
+            <div class="forecast-time">${isNow ? '🕐 今' : String(h).padStart(2,'0') + ':00'}</div>
+            <div class="forecast-temp">${t.toFixed(0)}°</div>
+            <div class="forecast-badge bg-${lv.key}">${lv.label}</div>
             <div class="forecast-humid">💧${Math.round(hu)}%</div>
         `;
-        forecastContainer.appendChild(el);
+        fc.appendChild(el);
     });
 
     // アドバイス
-    const adviceList = document.getElementById('advice-list');
-    adviceList.innerHTML = '';
-    getAdviceList(level).forEach(item => {
+    const al = document.getElementById('advice-list');
+    al.innerHTML = '';
+    getAdviceList(level.key).forEach(item => {
         const li = document.createElement('li');
         li.innerHTML = `<span class="adv-icon">${item.icon}</span><span>${item.text}</span>`;
-        adviceList.appendChild(li);
+        al.appendChild(li);
     });
 
-    // 最終更新
     document.getElementById('last-update').textContent =
         `最終更新：${now.toLocaleTimeString('ja-JP')}`;
 }
 
-// ===== エラー表示 =====
+// エラー表示
 function showError(msg) {
     document.getElementById('loading').style.display = 'none';
     document.getElementById('app').style.display = 'none';
@@ -186,7 +168,7 @@ function showError(msg) {
     document.getElementById('error-msg').textContent = msg;
 }
 
-// ===== メイン処理 =====
+// メイン
 async function loadData() {
     document.getElementById('loading').style.display = 'flex';
     document.getElementById('app').style.display = 'none';
@@ -198,15 +180,14 @@ async function loadData() {
     }
 
     navigator.geolocation.getCurrentPosition(
-        async (pos) => {
-            const { latitude: lat, longitude: lon } = pos.coords;
+        async ({ coords: { latitude: lat, longitude: lon } }) => {
             try {
                 const [weatherData, placeName] = await Promise.all([
                     fetchWeather(lat, lon),
                     getPlaceName(lat, lon)
                 ]);
                 renderApp(weatherData, lat, lon, placeName);
-            } catch (e) {
+            } catch {
                 showError('気象データの取得に失敗しました。しばらくしてから再試行してください。');
             }
         },
@@ -225,5 +206,4 @@ async function loadData() {
 document.getElementById('btn-reload').addEventListener('click', loadData);
 document.getElementById('btn-retry').addEventListener('click', loadData);
 
-// 起動
 loadData();
