@@ -273,10 +273,10 @@ main {
     height: 16px;
     border-radius: 8px;
     background: linear-gradient(to right,
-        #16a34a 0%, #16a34a 20%,
-        #ca8a04 20%, #ca8a04 40%,
-        #ea580c 40%, #ea580c 60%,
-        #dc2626 60%, #dc2626 80%,
+        #16a34a 0%,  #16a34a 30%,
+        #ca8a04 30%, #ca8a04 50%,
+        #ea580c 50%, #ea580c 65%,
+        #dc2626 65%, #dc2626 80%,
         #7c3aed 80%, #7c3aed 100%
     );
     position: relative;
