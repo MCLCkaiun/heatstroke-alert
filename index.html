@@ -67,7 +67,7 @@
         <div class="metric-card wbgt">
             <div class="metric-emoji">🌡️</div>
             <div class="metric-label">暑さ指数 WBGT</div>
-            <div class="metric-value" id="val-wbgt">--<span class="metric-unit">°C</span></div>
+            <div class="metric-value" id="val-wbgt">--</div>
         </div>
         <div class="metric-card temp">
             <div class="metric-emoji">☀️</div>
@@ -104,22 +104,24 @@
 
     <!-- 波浪セクション -->
     <div class="marine-section" id="marine-section" style="display:none">
-        <div class="section-title">🌊 波浪情報（現在地付近の海域）</div>
+        <div class="section-title" id="marine-title">🌊 波浪情報（現在地付近の海域）</div>
         <div class="marine-grid">
             <div class="marine-card">
-                <div class="marine-label">波高</div>
+                <div class="marine-label">有義波高</div>
                 <div class="marine-value" id="val-wave-height">--</div>
-                <div class="marine-label" style="margin-top:6px">波の状況</div>
+                <div class="marine-label" style="margin-top:8px">波の状況</div>
                 <div class="wave-label-badge" id="val-wave-label">--</div>
             </div>
             <div class="marine-card">
                 <div class="marine-label">波向</div>
                 <div class="marine-dir" id="val-wave-dir">--</div>
+                <div class="marine-label" style="margin-top:8px">波周期</div>
+                <div class="marine-value" id="val-wave-period" style="font-size:28px">--</div>
             </div>
             <div class="marine-card">
                 <div class="marine-label">うねり高</div>
                 <div class="marine-value" id="val-swell-height">--</div>
-                <div class="marine-label" style="margin-top:6px">うねり方向</div>
+                <div class="marine-label" style="margin-top:8px">うねり方向</div>
                 <div class="marine-dir" id="val-swell-dir">--</div>
             </div>
         </div>

@@ -71,7 +71,7 @@ function updateClock() {
 setInterval(updateClock, 1000);
 updateClock();
 
-// 逆ジオコーディング
+// 逆ジオコーディング（地名 + 最寄り海域名）
 async function getPlaceName(lat, lon) {
     try {
         const res = await fetch(
@@ -84,8 +84,35 @@ async function getPlaceName(lat, lon) {
         );
         const d = await res.json();
         const a = d.address || {};
-        return a.city || a.town || a.village || a.county || a.state || '現在地';
+        const placeName = a.city || a.town || a.village || a.county || a.state || '現在地';
+        return placeName;
     } catch { return '現在地'; }
+}
+
+// 最寄り海域名を取得（現在地から最も近い海域を探す）
+async function getNearestSeaName(lat, lon) {
+    // 沿岸方向に少しずらして海域名を探す
+    const offsets = [
+        [0, 0], [0, 0.3], [0, -0.3], [0.3, 0], [-0.3, 0],
+        [0.2, 0.2], [-0.2, 0.2], [0.2, -0.2], [-0.2, -0.2],
+    ];
+    for (const [dLat, dLon] of offsets) {
+        try {
+            const res = await fetch(
+                `https://nominatim.openstreetmap.org/reverse?lat=${lat + dLat}&lon=${lon + dLon}&format=json&accept-language=ja`,
+                {
+                    headers: {
+                        'User-Agent': 'HeatstrokeMonitor/1.0 (https://kaiummclc.github.io/; non-commercial internal tool)'
+                    }
+                }
+            );
+            const d = await res.json();
+            const a = d.address || {};
+            const sea = a.sea || a.bay || a.ocean || a.body_of_water || a.water || null;
+            if (sea) return sea;
+        } catch { continue; }
+    }
+    return null;
 }
 
 // 気象データ取得
@@ -105,7 +132,7 @@ async function fetchWeather(lat, lon) {
 async function fetchMarine(lat, lon) {
     const params = new URLSearchParams({
         latitude: lat, longitude: lon,
-        hourly: 'wave_height,wave_direction,wave_period,wind_wave_height,swell_wave_height,swell_wave_direction',
+        hourly: 'wave_height,wave_direction,wave_period,swell_wave_height,swell_wave_direction',
         forecast_days: 1,
         timezone: 'Asia/Tokyo',
     });
@@ -115,7 +142,7 @@ async function fetchMarine(lat, lon) {
 }
 
 // UI描画
-function renderApp(data, marine, lat, lon, placeName) {
+function renderApp(data, marine, lat, lon, placeName, seaName) {
     const now = new Date();
     const currentHour = now.getHours();
 
@@ -151,7 +178,7 @@ function renderApp(data, marine, lat, lon, placeName) {
     document.getElementById('hero-desc').textContent  = level.desc;
 
     // メトリクス
-    document.getElementById('val-wbgt').innerHTML  = `${wbgt.toFixed(1)}<span class="metric-unit">°C</span>`;
+    document.getElementById('val-wbgt').textContent = wbgt.toFixed(1);
     document.getElementById('val-temp').innerHTML  = `${temp.toFixed(1)}<span class="metric-unit">°C</span>`;
     document.getElementById('val-humid').innerHTML = `${Math.round(humid)}<span class="metric-unit">%</span>`;
     document.getElementById('val-wind').innerHTML  = `${wind.toFixed(1)}<span class="metric-unit">m/s</span>`;
@@ -167,25 +194,40 @@ function renderApp(data, marine, lat, lon, placeName) {
         const mh = marine.hourly;
         const waveH    = mh.wave_height    ? mh.wave_height[nowIdx]    : null;
         const waveDir  = mh.wave_direction ? mh.wave_direction[nowIdx] : null;
-        const swellH   = mh.swell_wave_height   ? mh.swell_wave_height[nowIdx]   : null;
+        const swellH   = mh.swell_wave_height    ? mh.swell_wave_height[nowIdx]    : null;
         const swellDir = mh.swell_wave_direction ? mh.swell_wave_direction[nowIdx] : null;
+        const wavePeriod = mh.wave_period ? mh.wave_period[nowIdx] : null;
         const waveLv   = waveLabel(waveH);
 
         if (marineSection) marineSection.style.display = 'block';
+
+        // 海域名をタイトルに表示
+        const marineTitleEl = document.getElementById('marine-title');
+        if (marineTitleEl) {
+            marineTitleEl.textContent = seaName
+                ? `🌊 波浪情報（${seaName}）`
+                : '🌊 波浪情報（現在地付近の海域）';
+        }
+
+        // 波高・状況
         const elH   = document.getElementById('val-wave-height');
-        const elDir = document.getElementById('val-wave-dir');
         const elLbl = document.getElementById('val-wave-label');
+        if (elH)   elH.innerHTML = waveH !== null ? `${waveH.toFixed(1)}<span class="metric-unit">m</span>` : '--';
+        if (elLbl) { elLbl.textContent = waveLv.label; elLbl.className = `wave-label-badge wave-${waveLv.key}`; }
+
+        // 波向
+        const elDir = document.getElementById('val-wave-dir');
+        if (elDir) elDir.textContent = waveDir !== null ? degToDir(waveDir) : '--';
+
+        // うねり
         const elSH  = document.getElementById('val-swell-height');
         const elSD  = document.getElementById('val-swell-dir');
+        if (elSH) elSH.innerHTML  = swellH  !== null ? `${swellH.toFixed(1)}<span class="metric-unit">m</span>` : '--';
+        if (elSD) elSD.textContent = swellDir !== null ? degToDir(swellDir) : '--';
 
-        if (elH)   elH.innerHTML   = waveH !== null ? `${waveH.toFixed(1)}<span class="metric-unit">m</span>` : '--';
-        if (elDir) elDir.textContent = waveDir !== null ? degToDir(waveDir) : '--';
-        if (elLbl) {
-            elLbl.textContent  = waveLv.label;
-            elLbl.className    = `wave-label-badge wave-${waveLv.key}`;
-        }
-        if (elSH)  elSH.innerHTML  = swellH !== null ? `${swellH.toFixed(1)}<span class="metric-unit">m</span>` : '--';
-        if (elSD)  elSD.textContent = swellDir !== null ? degToDir(swellDir) : '--';
+        // 波周期
+        const elPeriod = document.getElementById('val-wave-period');
+        if (elPeriod) elPeriod.innerHTML = wavePeriod !== null ? `${wavePeriod.toFixed(0)}<span class="metric-unit">秒</span>` : '--';
     } else {
         if (marineSection) marineSection.style.display = 'none';
     }
@@ -256,12 +298,13 @@ async function loadData() {
     navigator.geolocation.getCurrentPosition(
         async ({ coords: { latitude: lat, longitude: lon } }) => {
             try {
-                const [weatherData, marineData, placeName] = await Promise.all([
+                const [weatherData, marineData, placeName, seaName] = await Promise.all([
                     fetchWeather(lat, lon),
                     fetchMarine(lat, lon),
-                    getPlaceName(lat, lon)
+                    getPlaceName(lat, lon),
+                    getNearestSeaName(lat, lon)
                 ]);
-                renderApp(weatherData, marineData, lat, lon, placeName);
+                renderApp(weatherData, marineData, lat, lon, placeName, seaName);
             } catch {
                 showError('気象データの取得に失敗しました。しばらくしてから再試行してください。');
             }
