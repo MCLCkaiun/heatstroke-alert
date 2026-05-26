@@ -332,7 +332,8 @@ main {
 }
 
 .forecast-item {
-    flex: 0 0 76px;
+    flex: 1 1 0;
+    min-width: 64px;
     background: var(--bg);
     border: 1px solid var(--border);
     border-radius: 10px;
@@ -510,6 +511,10 @@ footer a { color: var(--muted); }
     grid-template-columns: repeat(3, 1fr);
     gap: 12px;
     margin-bottom: 10px;
+}
+
+.marine-grid-2 {
+    grid-template-columns: repeat(2, 1fr);
 }
 
 .marine-card {
