@@ -81,8 +81,9 @@
         </div>
         <div class="metric-card wind">
             <div class="metric-emoji">💨</div>
-            <div class="metric-label">風速</div>
+            <div class="metric-label">風速 / 風向</div>
             <div class="metric-value" id="val-wind">--<span class="metric-unit">m/s</span></div>
+            <div class="metric-sub" id="val-winddir">--</div>
         </div>
     </div>
 
@@ -99,6 +100,30 @@
             <span>厳重警戒</span>
             <span>危険</span>
         </div>
+    </div>
+
+    <!-- 波浪セクション -->
+    <div class="marine-section" id="marine-section" style="display:none">
+        <div class="section-title">🌊 波浪情報（現在地付近の海域）</div>
+        <div class="marine-grid">
+            <div class="marine-card">
+                <div class="marine-label">波高</div>
+                <div class="marine-value" id="val-wave-height">--</div>
+                <div class="marine-label" style="margin-top:6px">波の状況</div>
+                <div class="wave-label-badge" id="val-wave-label">--</div>
+            </div>
+            <div class="marine-card">
+                <div class="marine-label">波向</div>
+                <div class="marine-dir" id="val-wave-dir">--</div>
+            </div>
+            <div class="marine-card">
+                <div class="marine-label">うねり高</div>
+                <div class="marine-value" id="val-swell-height">--</div>
+                <div class="marine-label" style="margin-top:6px">うねり方向</div>
+                <div class="marine-dir" id="val-swell-dir">--</div>
+            </div>
+        </div>
+        <p class="marine-note">※ 海域データは約25km格子の予報値です。港湾・内水面では取得できない場合があります。</p>
     </div>
 
     <!-- 予報 + アドバイス -->

@@ -1,4 +1,26 @@
 const OPEN_METEO = 'https://api.open-meteo.com/v1/forecast';
+const OPEN_METEO_MARINE = 'https://marine-api.open-meteo.com/v1/marine';
+
+// 風向・波向を16方位に変換
+function degToDir(deg) {
+    if (deg === null || deg === undefined) return '不明';
+    const dirs = ['北','北北東','北東','東北東','東','東南東','南東','南南東',
+                  '南','南南西','南西','西南西','西','西北西','北西','北北西'];
+    return dirs[Math.round(deg / 22.5) % 16];
+}
+
+// 波浪の状況名称（ビューフォート波浪階級に準拠）
+function waveLabel(height) {
+    if (height === null || height === undefined) return { label: '不明', key: 'unknown' };
+    if (height < 0.1) return { label: '凪（0.1m未満）',     key: 'calm' };
+    if (height < 0.5) return { label: '静穏（〜0.5m）',     key: 'smooth' };
+    if (height < 1.25) return { label: '穏やか（〜1.25m）', key: 'slight' };
+    if (height < 2.5)  return { label: 'やや高い（〜2.5m）',key: 'moderate' };
+    if (height < 4.0)  return { label: '高い（〜4.0m）',    key: 'rough' };
+    if (height < 6.0)  return { label: '非常に高い（〜6m）',key: 'very_rough' };
+    if (height < 9.0)  return { label: '猛烈（〜9m）',      key: 'high' };
+    return               { label: '異常（9m超）',            key: 'phenomenal' };
+}
 
 // WBGT近似式（環境省方式）
 function calcWBGT(temp, humidity) {
@@ -70,7 +92,7 @@ async function getPlaceName(lat, lon) {
 async function fetchWeather(lat, lon) {
     const params = new URLSearchParams({
         latitude: lat, longitude: lon,
-        hourly: 'temperature_2m,relativehumidity_2m,windspeed_10m',
+        hourly: 'temperature_2m,relativehumidity_2m,windspeed_10m,winddirection_10m',
         forecast_days: 1,
         timezone: 'Asia/Tokyo',
     });
@@ -79,8 +101,21 @@ async function fetchWeather(lat, lon) {
     return res.json();
 }
 
+// 波浪データ取得
+async function fetchMarine(lat, lon) {
+    const params = new URLSearchParams({
+        latitude: lat, longitude: lon,
+        hourly: 'wave_height,wave_direction,wave_period,wind_wave_height,swell_wave_height,swell_wave_direction',
+        forecast_days: 1,
+        timezone: 'Asia/Tokyo',
+    });
+    const res = await fetch(`${OPEN_METEO_MARINE}?${params}`);
+    if (!res.ok) return null; // 陸地など取得できない場合はnullを返す
+    return res.json();
+}
+
 // UI描画
-function renderApp(data, lat, lon, placeName) {
+function renderApp(data, marine, lat, lon, placeName) {
     const now = new Date();
     const currentHour = now.getHours();
 
@@ -120,6 +155,40 @@ function renderApp(data, lat, lon, placeName) {
     document.getElementById('val-temp').innerHTML  = `${temp.toFixed(1)}<span class="metric-unit">°C</span>`;
     document.getElementById('val-humid').innerHTML = `${Math.round(humid)}<span class="metric-unit">%</span>`;
     document.getElementById('val-wind').innerHTML  = `${wind.toFixed(1)}<span class="metric-unit">m/s</span>`;
+
+    // 風向
+    const windDir = data.hourly.winddirection_10m ? data.hourly.winddirection_10m[nowIdx] : null;
+    const windDirEl = document.getElementById('val-winddir');
+    if (windDirEl) windDirEl.textContent = windDir !== null ? degToDir(windDir) : '--';
+
+    // 波浪
+    const marineSection = document.getElementById('marine-section');
+    if (marine && marine.hourly) {
+        const mh = marine.hourly;
+        const waveH    = mh.wave_height    ? mh.wave_height[nowIdx]    : null;
+        const waveDir  = mh.wave_direction ? mh.wave_direction[nowIdx] : null;
+        const swellH   = mh.swell_wave_height   ? mh.swell_wave_height[nowIdx]   : null;
+        const swellDir = mh.swell_wave_direction ? mh.swell_wave_direction[nowIdx] : null;
+        const waveLv   = waveLabel(waveH);
+
+        if (marineSection) marineSection.style.display = 'block';
+        const elH   = document.getElementById('val-wave-height');
+        const elDir = document.getElementById('val-wave-dir');
+        const elLbl = document.getElementById('val-wave-label');
+        const elSH  = document.getElementById('val-swell-height');
+        const elSD  = document.getElementById('val-swell-dir');
+
+        if (elH)   elH.innerHTML   = waveH !== null ? `${waveH.toFixed(1)}<span class="metric-unit">m</span>` : '--';
+        if (elDir) elDir.textContent = waveDir !== null ? degToDir(waveDir) : '--';
+        if (elLbl) {
+            elLbl.textContent  = waveLv.label;
+            elLbl.className    = `wave-label-badge wave-${waveLv.key}`;
+        }
+        if (elSH)  elSH.innerHTML  = swellH !== null ? `${swellH.toFixed(1)}<span class="metric-unit">m</span>` : '--';
+        if (elSD)  elSD.textContent = swellDir !== null ? degToDir(swellDir) : '--';
+    } else {
+        if (marineSection) marineSection.style.display = 'none';
+    }
 
     // ゲージ針（WBGT 0〜40°C → 0〜100%）
     const pct = Math.min(100, Math.max(0, (wbgt / 40) * 100));
@@ -187,11 +256,12 @@ async function loadData() {
     navigator.geolocation.getCurrentPosition(
         async ({ coords: { latitude: lat, longitude: lon } }) => {
             try {
-                const [weatherData, placeName] = await Promise.all([
+                const [weatherData, marineData, placeName] = await Promise.all([
                     fetchWeather(lat, lon),
+                    fetchMarine(lat, lon),
                     getPlaceName(lat, lon)
                 ]);
-                renderApp(weatherData, lat, lon, placeName);
+                renderApp(weatherData, marineData, lat, lon, placeName);
             } catch {
                 showError('気象データの取得に失敗しました。しばらくしてから再試行してください。');
             }
