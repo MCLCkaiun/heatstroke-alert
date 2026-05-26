@@ -116,9 +116,16 @@
 </main>
 
 <footer>
-    <span id="last-update">--</span>　／　
-    気象データ：<a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo</a>（無料・APIキー不要）　／　
-    WBGT は環境省基準に基づく近似計算値です
+    <div class="footer-disclaimer">
+        ⚠️ 本ツールのWBGT（暑さ指数）は、気温・湿度から環境省基準に基づき近似計算した参考値です。
+        実測値とは異なる場合があります。<strong>作業可否の最終判断は必ず現場責任者が行ってください。</strong>
+        本ツールの情報を根拠とした判断に起因するいかなる損害についても、運営者は責任を負いません。
+    </div>
+    <div class="footer-meta">
+        <span id="last-update">--</span>　／　
+        気象データ：<a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo</a>　／　
+        地名：<a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">© OpenStreetMap contributors</a>
+    </div>
 </footer>
 
 <script src="js/script.js"></script>

@@ -53,7 +53,12 @@ updateClock();
 async function getPlaceName(lat, lon) {
     try {
         const res = await fetch(
-            `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json&accept-language=ja`
+            `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json&accept-language=ja`,
+            {
+                headers: {
+                    'User-Agent': 'HeatstrokeMonitor/1.0 (https://kaiummclc.github.io/; non-commercial internal tool)'
+                }
+            }
         );
         const d = await res.json();
         const a = d.address || {};
