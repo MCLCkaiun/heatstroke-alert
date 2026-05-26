@@ -303,12 +303,7 @@ main {
     font-weight: 500;
 }
 
-/* ===== BOTTOM GRID ===== */
-.bottom-grid {
-    display: grid;
-    grid-template-columns: 3fr 2fr;
-    gap: 12px;
-}
+
 
 /* ===== FORECAST ===== */
 .forecast-section {
@@ -621,10 +616,6 @@ footer a { color: var(--muted); }
     .hero-alert .hero-level { font-size: 40px; }
 
     /* bottom-grid を縦積みに */
-    .bottom-grid {
-        grid-template-columns: 1fr;
-    }
-
     /* 予報：横スクロールをやめてグリッド折り返しに */
     .forecast-scroll {
         display: grid;

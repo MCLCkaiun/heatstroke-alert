@@ -89,30 +89,84 @@ async function getPlaceName(lat, lon) {
     } catch { return '現在地'; }
 }
 
-// 最寄り海域名を取得（現在地から最も近い海域を探す）
-async function getNearestSeaName(lat, lon) {
-    // 沿岸方向に少しずらして海域名を探す
-    const offsets = [
-        [0, 0], [0, 0.3], [0, -0.3], [0.3, 0], [-0.3, 0],
-        [0.2, 0.2], [-0.2, 0.2], [0.2, -0.2], [-0.2, -0.2],
-    ];
-    for (const [dLat, dLon] of offsets) {
-        try {
-            const res = await fetch(
-                `https://nominatim.openstreetmap.org/reverse?lat=${lat + dLat}&lon=${lon + dLon}&format=json&accept-language=ja`,
-                {
-                    headers: {
-                        'User-Agent': 'HeatstrokeMonitor/1.0 (https://kaiummclc.github.io/; non-commercial internal tool)'
-                    }
-                }
-            );
-            const d = await res.json();
-            const a = d.address || {};
-            const sea = a.sea || a.bay || a.ocean || a.body_of_water || a.water || null;
-            if (sea) return sea;
-        } catch { continue; }
+// 日本主要港リスト（国土交通省 重要港湾・特定重要港湾を中心に収録）
+const SEA_AREAS = [
+    // 関東
+    { name: '東京港',       lat: 35.633, lon: 139.783 },
+    { name: '横浜港',       lat: 35.444, lon: 139.641 },
+    { name: '川崎港',       lat: 35.508, lon: 139.758 },
+    { name: '千葉港',       lat: 35.567, lon: 140.050 },
+    { name: '木更津港',     lat: 35.383, lon: 139.917 },
+    { name: '横須賀港',     lat: 35.283, lon: 139.667 },
+    // 東北・北海道
+    { name: '苫小牧港',     lat: 42.633, lon: 141.617 },
+    { name: '室蘭港',       lat: 42.317, lon: 140.967 },
+    { name: '函館港',       lat: 41.783, lon: 140.733 },
+    { name: '小樽港',       lat: 43.200, lon: 141.000 },
+    { name: '釧路港',       lat: 42.983, lon: 144.383 },
+    { name: '石狩湾新港',   lat: 43.283, lon: 141.233 },
+    { name: '八戸港',       lat: 40.533, lon: 141.533 },
+    { name: '仙台塩釜港',   lat: 38.317, lon: 141.017 },
+    { name: '秋田港',       lat: 39.750, lon: 140.083 },
+    // 中部・東海
+    { name: '清水港',       lat: 35.017, lon: 138.500 },
+    { name: '名古屋港',     lat: 35.083, lon: 136.883 },
+    { name: '四日市港',     lat: 34.967, lon: 136.617 },
+    // 近畿
+    { name: '大阪港',       lat: 34.650, lon: 135.417 },
+    { name: '堺泉北港',     lat: 34.533, lon: 135.433 },
+    { name: '神戸港',       lat: 34.683, lon: 135.183 },
+    { name: '姫路港',       lat: 34.800, lon: 134.683 },
+    { name: '和歌山下津港', lat: 34.183, lon: 135.183 },
+    // 中国
+    { name: '水島港',       lat: 34.483, lon: 133.783 },
+    { name: '福山港',       lat: 34.467, lon: 133.383 },
+    { name: '広島港',       lat: 34.350, lon: 132.467 },
+    { name: '宇部港',       lat: 33.950, lon: 131.233 },
+    { name: '下関港',       lat: 33.950, lon: 130.933 },
+    { name: '境港',         lat: 35.533, lon: 133.233 },
+    // 四国
+    { name: '高松港',       lat: 34.350, lon: 134.050 },
+    { name: '坂出港',       lat: 34.317, lon: 133.867 },
+    { name: '松山港',       lat: 33.833, lon: 132.717 },
+    { name: '高知港',       lat: 33.517, lon: 133.533 },
+    { name: '徳島小松島港', lat: 33.983, lon: 134.583 },
+    // 九州
+    { name: '北九州港',     lat: 33.883, lon: 130.867 },
+    { name: '博多港',       lat: 33.600, lon: 130.400 },
+    { name: '長崎港',       lat: 32.733, lon: 129.867 },
+    { name: '大分港',       lat: 33.233, lon: 131.633 },
+    { name: '熊本港',       lat: 32.767, lon: 130.583 },
+    { name: '八代港',       lat: 32.517, lon: 130.583 },
+    { name: '鹿児島港',     lat: 31.600, lon: 130.567 },
+    { name: '志布志港',     lat: 31.467, lon: 131.083 },
+    { name: '細島港',       lat: 32.417, lon: 131.667 },
+    // 沖縄
+    { name: '那覇港',       lat: 26.217, lon: 127.667 },
+    { name: '中城湾港',     lat: 26.267, lon: 127.817 },
+    { name: '平良港',       lat: 24.800, lon: 125.283 },
+    { name: '石垣港',       lat: 24.333, lon: 124.150 },
+];
+
+// 2点間の距離（km）を計算
+function calcDist(lat1, lon1, lat2, lon2) {
+    const R = 6371;
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a = Math.sin(dLat/2)**2 +
+              Math.cos(lat1 * Math.PI/180) * Math.cos(lat2 * Math.PI/180) * Math.sin(dLon/2)**2;
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+
+// 最寄り海域名を返す（500km以内のみ、それ以外はnull）
+function getNearestSeaName(lat, lon) {
+    let nearest = null;
+    let minDist = Infinity;
+    for (const area of SEA_AREAS) {
+        const d = calcDist(lat, lon, area.lat, area.lon);
+        if (d < minDist) { minDist = d; nearest = area.name; }
     }
-    return null;
+    return minDist < 150 ? nearest : null;
 }
 
 // 気象データ取得
@@ -209,25 +263,11 @@ function renderApp(data, marine, lat, lon, placeName, seaName) {
                 : '🌊 波浪情報（現在地付近の海域）';
         }
 
-        // 波高・状況
-        const elH   = document.getElementById('val-wave-height');
-        const elLbl = document.getElementById('val-wave-label');
-        if (elH)   elH.innerHTML = waveH !== null ? `${waveH.toFixed(1)}<span class="metric-unit">m</span>` : '--';
-        if (elLbl) { elLbl.textContent = waveLv.label; elLbl.className = `wave-label-badge wave-${waveLv.key}`; }
-
-        // 波向
-        const elDir = document.getElementById('val-wave-dir');
-        if (elDir) elDir.textContent = waveDir !== null ? degToDir(waveDir) : '--';
-
-        // うねり
-        const elSH  = document.getElementById('val-swell-height');
-        const elSD  = document.getElementById('val-swell-dir');
-        if (elSH) elSH.innerHTML  = swellH  !== null ? `${swellH.toFixed(1)}<span class="metric-unit">m</span>` : '--';
+        // うねりのみ表示
+        const elSH = document.getElementById('val-swell-height');
+        const elSD = document.getElementById('val-swell-dir');
+        if (elSH) elSH.innerHTML   = swellH   !== null ? `${swellH.toFixed(1)}<span class="metric-unit">m</span>` : '--';
         if (elSD) elSD.textContent = swellDir !== null ? degToDir(swellDir) : '--';
-
-        // 波周期
-        const elPeriod = document.getElementById('val-wave-period');
-        if (elPeriod) elPeriod.innerHTML = wavePeriod !== null ? `${wavePeriod.toFixed(0)}<span class="metric-unit">秒</span>` : '--';
     } else {
         if (marineSection) marineSection.style.display = 'none';
     }
@@ -298,11 +338,11 @@ async function loadData() {
     navigator.geolocation.getCurrentPosition(
         async ({ coords: { latitude: lat, longitude: lon } }) => {
             try {
-                const [weatherData, marineData, placeName, seaName] = await Promise.all([
+                const seaName = getNearestSeaName(lat, lon);
+                const [weatherData, marineData, placeName] = await Promise.all([
                     fetchWeather(lat, lon),
                     fetchMarine(lat, lon),
-                    getPlaceName(lat, lon),
-                    getNearestSeaName(lat, lon)
+                    getPlaceName(lat, lon)
                 ]);
                 renderApp(weatherData, marineData, lat, lon, placeName, seaName);
             } catch {
