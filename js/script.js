@@ -397,7 +397,7 @@ function renderApp(data, marine, lat, lon, placeName, seaName) {
     for (let i = 0; i < hours.length; i++) {
         if (hours[i] >= currentHour) showIdxs.push(i);
     }
-    showIdxs.slice(0, 9).forEach(idx => {
+    showIdxs.forEach(idx => {
         const h  = hours[idx];
         const t  = temps[idx];
         const hu = humids[idx];
@@ -479,3 +479,356 @@ document.getElementById('btn-reload').addEventListener('click', loadData);
 document.getElementById('btn-retry').addEventListener('click', loadData);
 
 loadData();
+// =============================================
+// 熱中症診断フロー（4チェック・1問ずつ・次へ不要）
+// =============================================
+
+// ルール：
+//   q1 いいえ → r_safe（直行）
+//   q1 はい   → q2（直行）
+//   q2 いいえ → 同画面に「救急車を呼ぶ」＋応急処置を即表示（次へなし）
+//   q2 はい   → q3（直行）
+//   q3 いいえ → 同画面に「医療機関へ」＋応急処置を即表示（次へなし）
+//   q3 はい   → q4（直行・次へなし）
+//   q4 いいえ → 同画面に「医療機関へ」＋応急処置を即表示（次へなし）
+//   q4 はい   → r_rest（直行・次へなし）
+
+let diagStack = [];
+let diagCurrentId = null;
+
+function openDiagnosis() {
+    diagStack = [];
+    diagCurrentId = null;
+    document.getElementById('diagnosis-overlay').style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+    _showDiagStep('q1');
+}
+
+function closeDiagnosis() {
+    document.getElementById('diagnosis-overlay').style.display = 'none';
+    document.body.style.overflow = '';
+}
+
+function closeDiagnosisOverlay(e) {
+    if (e.target === document.getElementById('diagnosis-overlay')) closeDiagnosis();
+}
+
+function diagBack() {
+    if (diagStack.length === 0) return;
+    const prev = diagStack.pop();
+    diagCurrentId = prev;
+    _showDiagStep(prev);
+}
+
+function _setBackBtn() {
+    const btn = document.getElementById('diag-back');
+    btn.style.visibility = diagStack.length > 0 ? 'visible' : 'hidden';
+}
+
+// ステップ描画（回答前）
+function _showDiagStep(stepId) {
+    diagCurrentId = stepId;
+    _setBackBtn();
+
+    const steps = {
+        q1: { num:'チェック１', q:'熱中症を疑う症状がありますか？',
+               sub:'めまい・失神・筋肉痛・筋肉の硬直・大量の発汗・頭痛・不快感・吐き気・嘔吐・倦怠感・虚脱感・意識障害・けいれん・手足の運動障害・高体温' },
+        q2: { num:'チェック２', q:'呼びかけに答えますか？',       sub:null },
+        q3: { num:'チェック３', q:'水分を自力で摂取できていますか？', sub:null },
+        q4: { num:'チェック４', q:'症状がよくなりましたか？',       sub:null },
+    };
+    const step = steps[stepId];
+    document.getElementById('diag-header-title').textContent = '熱中症と思ったら？';
+    document.getElementById('diag-body').innerHTML = `
+        <div class="diag-check-num">${step.num}</div>
+        <div class="diag-question">${step.q}</div>
+        ${step.sub ? `<div class="diag-sub">${step.sub}</div>` : ''}
+        <div class="diag-yn-row">
+            <button class="diag-yn-btn diag-yn-btn--yes" onclick="diagAnswer('${stepId}','yes')">はい</button>
+            <button class="diag-yn-btn diag-yn-btn--no"  onclick="diagAnswer('${stepId}','no')">いいえ</button>
+        </div>
+    `;
+}
+
+// 回答処理
+function diagAnswer(stepId, answer) {
+    // ボタン状態を選択済みに更新
+    const body = document.getElementById('diag-body');
+    body.querySelectorAll('.diag-yn-btn').forEach(btn => {
+        const isYes = btn.textContent.trim() === 'はい';
+        const chosen = (answer === 'yes') ? isYes : !isYes;
+        btn.classList.toggle('selected', chosen);
+        btn.classList.toggle('dimmed', !chosen);
+        btn.onclick = null; // 再クリック無効化
+    });
+
+    // 次のアクションを決定
+    if (stepId === 'q1') {
+        if (answer === 'yes') {
+            setTimeout(() => { diagStack.push('q1'); _showDiagStep('q2'); }, 300);
+        } else {
+            setTimeout(() => { diagStack.push('q1'); _showDiagResult('r_safe'); }, 300);
+        }
+        return;
+    }
+
+    if (stepId === 'q2') {
+        if (answer === 'yes') {
+            setTimeout(() => { diagStack.push('q2'); _showDiagStep('q3'); }, 300);
+        } else {
+            // いいえ → 同画面にアクション追加
+            _appendAction(body, `
+                <div class="diag-call-row">
+                    <a href="tel:119" class="diag-call-ambulance">
+                        <div class="diag-call-label">救急車</div>
+                        <div class="diag-call-num">119</div>
+                    </a>
+                    <a href="tel:118" class="diag-call-jcg">
+                        <div class="diag-call-label">海上保安庁</div>
+                        <div class="diag-call-num">118</div>
+                    </a>
+                </div>
+                <div class="diag-action-headline">涼しい場所へ避難し、服をゆるめ体を冷やす</div>
+                <div class="diag-action-desc">救急車が到着するまでの間に応急処置を始めましょう。呼びかけへの反応が悪い場合には無理に水を飲ませてはいけません</div>
+                <div class="diag-action-desc" style="color:#0ea5e9;font-weight:700;">氷のう等があれば、首・腋の下・太腿のつけ根を集中的に冷やしましょう</div>
+                <button class="diag-restart" onclick="openDiagnosis()">最初からやり直す</button>
+            `);
+        }
+        return;
+    }
+
+    if (stepId === 'q3') {
+        if (answer === 'yes') {
+            // はい → チェック4へ直行（メッセージ表示なし）
+            setTimeout(() => { diagStack.push('q3'); _showDiagStep('q4'); }, 300);
+        } else {
+            // いいえ → 同画面にアクション追加
+            _appendAction(body, `
+                <a href="https://www.iryou.teikyouseido.mhlw.go.jp/znk-web/juminkanja/S2300/initialize"
+                   target="_blank" rel="noopener" class="diag-call-hospital">医療機関へ</a>
+                <div class="diag-action-headline">涼しい場所へ避難し、服をゆるめ体を冷やす</div>
+                <div class="diag-action-desc">氷のう等があれば、首・腋の下・太腿のつけ根を集中的に冷やしましょう</div>
+                <div class="diag-action-desc" style="border:1px solid var(--border);border-radius:8px;padding:12px;">
+                    本人が倒れたときの状況を知っている人が付き添って、発生時の状態を伝えましょう
+                </div>
+                <button class="diag-restart" onclick="openDiagnosis()">最初からやり直す</button>
+            `);
+        }
+        return;
+    }
+
+    if (stepId === 'q4') {
+        if (answer === 'yes') {
+            // はい → r_rest へ直行
+            setTimeout(() => { diagStack.push('q4'); _showDiagResult('r_rest'); }, 300);
+        } else {
+            // いいえ → 同画面にアクション追加
+            _appendAction(body, `
+                <a href="https://www.iryou.teikyouseido.mhlw.go.jp/znk-web/juminkanja/S2300/initialize"
+                   target="_blank" rel="noopener" class="diag-call-hospital">医療機関へ</a>
+                <div class="diag-action-headline">涼しい場所へ避難し、服をゆるめ体を冷やす</div>
+                <div class="diag-action-desc">氷のう等があれば、首・腋の下・太腿のつけ根を集中的に冷やしましょう</div>
+                <div class="diag-action-desc" style="border:1px solid var(--border);border-radius:8px;padding:12px;">
+                    本人が倒れたときの状況を知っている人が付き添って、発生時の状態を伝えましょう
+                </div>
+                <button class="diag-restart" onclick="openDiagnosis()">最初からやり直す</button>
+            `);
+        }
+        return;
+    }
+}
+
+function _appendAction(body, html) {
+    const block = document.createElement('div');
+    block.className = 'diag-action-block';
+    block.innerHTML = html;
+    body.appendChild(block);
+    // モーダルを一番下までスクロール
+    const modal = document.querySelector('.diag-modal');
+    if (modal) setTimeout(() => { modal.scrollTop = modal.scrollHeight; }, 50);
+}
+
+function _showDiagResult(resultId) {
+    diagCurrentId = resultId;
+    _setBackBtn();
+    document.getElementById('diag-header-title').textContent = '対応ガイド';
+
+    const bodies = {
+        r_safe: `
+            <div style="text-align:center">
+                <div style="font-size:52px;margin-bottom:12px;">✅</div>
+                <div style="font-size:20px;font-weight:700;color:var(--safe);margin-bottom:10px;">現時点では熱中症の疑いは低め</div>
+                <div style="font-size:14px;color:var(--muted);line-height:1.7;margin-bottom:28px;">
+                    引き続き水分・塩分補給と休憩を心がけてください。<br>症状が出てきたら再度チェックしてください。
+                </div>
+                <button class="diag-restart" onclick="openDiagnosis()">最初からやり直す</button>
+            </div>`,
+        r_rest: `
+            <div style="text-align:center">
+                <div style="font-size:52px;margin-bottom:12px;">😌</div>
+                <div class="diag-rest-msg">そのまま安静にして十分に休息をとり、<br>回復したら帰宅しましょう</div>
+                <div style="font-size:13px;color:var(--muted);line-height:1.7;margin-bottom:28px;">
+                    症状が再度悪化した場合はすぐに医療機関を受診してください。
+                </div>
+                <button class="diag-restart" onclick="openDiagnosis()">最初からやり直す</button>
+            </div>`,
+    };
+
+    document.getElementById('diag-body').innerHTML = bodies[resultId] || '';
+}
+
+// =============================================
+// 海上保安庁 最寄り拠点
+// =============================================
+
+// 全国 海上保安部・署（緊急電話番号は全国共通118）
+// 各本部の代表電話を掲載
+const JCG_STATIONS = [
+    // 第一管区（北海道）
+    { name:'小樽海上保安部',     area:'第一管区（北海道）',  lat:43.193, lon:141.001, tel:'0134-27-0118' },
+    { name:'函館海上保安部',     area:'第一管区（北海道）',  lat:41.773, lon:140.726, tel:'0138-42-7118' },
+    { name:'室蘭海上保安部',     area:'第一管区（北海道）',  lat:42.317, lon:140.972, tel:'0143-23-0118' },
+    { name:'苫小牧海上保安署',   area:'第一管区（北海道）',  lat:42.634, lon:141.617, tel:'0144-34-3118' },
+    { name:'釧路海上保安部',     area:'第一管区（北海道）',  lat:42.983, lon:144.383, tel:'0154-42-1118' },
+    { name:'稚内海上保安部',     area:'第一管区（北海道）',  lat:45.408, lon:141.675, tel:'0162-23-0118' },
+    // 第二管区（東北）
+    { name:'塩釜海上保安部',     area:'第二管区（東北）',    lat:38.317, lon:141.017, tel:'022-362-2244' },
+    { name:'仙台塩釜港海上保安署', area:'第二管区（東北）',  lat:38.267, lon:141.017, tel:'022-792-9118' },
+    { name:'宮古海上保安署',     area:'第二管区（東北）',    lat:39.650, lon:141.967, tel:'0193-62-5118' },
+    { name:'釜石海上保安署',     area:'第二管区（東北）',    lat:39.267, lon:141.883, tel:'0193-23-8118' },
+    { name:'大船渡海上保安署',   area:'第二管区（東北）',    lat:39.083, lon:141.733, tel:'0192-27-0118' },
+    { name:'秋田海上保安部',     area:'第二管区（東北）',    lat:39.750, lon:140.100, tel:'018-845-1248' },
+    { name:'酒田海上保安署',     area:'第二管区（東北）',    lat:38.917, lon:139.833, tel:'0234-23-0118' },
+    { name:'八戸海上保安部',     area:'第二管区（東北）',    lat:40.533, lon:141.533, tel:'0178-33-0118' },
+    // 第三管区（関東）
+    { name:'横浜海上保安部',     area:'第三管区（関東）',    lat:35.444, lon:139.641, tel:'045-661-0118' },
+    { name:'東京海上保安部',     area:'第三管区（関東）',    lat:35.633, lon:139.783, tel:'03-5463-6111' },
+    { name:'横須賀海上保安部',   area:'第三管区（関東）',    lat:35.283, lon:139.667, tel:'046-825-0118' },
+    { name:'千葉海上保安部',     area:'第三管区（関東）',    lat:35.567, lon:140.050, tel:'043-247-0118' },
+    { name:'茨城海上保安部',     area:'第三管区（関東）',    lat:36.317, lon:140.583, tel:'029-267-0118' },
+    // 第四管区（東海）
+    { name:'名古屋海上保安部',   area:'第四管区（東海）',    lat:35.083, lon:136.883, tel:'052-661-1611' },
+    { name:'四日市海上保安部',   area:'第四管区（東海）',    lat:34.967, lon:136.617, tel:'059-353-0118' },
+    { name:'清水海上保安部',     area:'第四管区（東海）',    lat:35.017, lon:138.500, tel:'054-352-0118' },
+    // 第五管区（近畿・四国）
+    { name:'神戸海上保安部',     area:'第五管区（近畿）',    lat:34.683, lon:135.183, tel:'078-331-0118' },
+    { name:'大阪海上保安監部',   area:'第五管区（近畿）',    lat:34.650, lon:135.417, tel:'06-6571-0118' },
+    { name:'和歌山海上保安部',   area:'第五管区（近畿）',    lat:34.183, lon:135.183, tel:'073-422-0118' },
+    { name:'高松海上保安部',     area:'第五管区（四国）',    lat:34.350, lon:134.050, tel:'087-821-7118' },
+    { name:'徳島海上保安部',     area:'第五管区（四国）',    lat:34.067, lon:134.550, tel:'088-622-8118' },
+    // 第六管区（中国）
+    { name:'広島海上保安部',     area:'第六管区（中国）',    lat:34.383, lon:132.433, tel:'082-251-5111' },
+    { name:'下関海上保安部',     area:'第六管区（中国）',    lat:33.950, lon:130.933, tel:'083-266-0118' },
+    { name:'水島海上保安部',     area:'第六管区（中国）',    lat:34.517, lon:133.767, tel:'086-444-0118' },
+    { name:'境海上保安部',       area:'第六管区（中国）',    lat:35.533, lon:133.233, tel:'0859-44-0118' },
+    // 第七管区（九州北部）
+    { name:'門司海上保安部',     area:'第七管区（九州北）',  lat:33.950, lon:130.967, tel:'093-321-2931' },
+    { name:'博多海上保安部',     area:'第七管区（九州北）',  lat:33.583, lon:130.417, tel:'092-281-0118' },
+    { name:'長崎海上保安部',     area:'第七管区（九州北）',  lat:32.733, lon:129.867, tel:'095-827-0118' },
+    { name:'佐世保海上保安部',   area:'第七管区（九州北）',  lat:33.183, lon:129.717, tel:'0956-22-0118' },
+    // 第八管区（日本海）
+    { name:'舞鶴海上保安部',     area:'第八管区（日本海）',  lat:35.467, lon:135.383, tel:'0773-75-0118' },
+    { name:'敦賀海上保安部',     area:'第八管区（日本海）',  lat:35.650, lon:136.067, tel:'0770-23-0118' },
+    { name:'新潟海上保安部',     area:'第八管区（日本海）',  lat:37.917, lon:139.050, tel:'025-244-0118' },
+    { name:'金沢海上保安部',     area:'第八管区（日本海）',  lat:36.583, lon:136.617, tel:'076-267-0118' },
+    // 第九管区（北陸・新潟）
+    { name:'新潟海上保安部（第九）', area:'第九管区（新潟）', lat:37.917, lon:139.067, tel:'025-281-0118' },
+    // 第十管区（九州南部）
+    { name:'鹿児島海上保安部',   area:'第十管区（九州南）',  lat:31.567, lon:130.550, tel:'099-222-0118' },
+    { name:'宮崎海上保安部',     area:'第十管区（九州南）',  lat:31.917, lon:131.433, tel:'0985-24-0118' },
+    { name:'大分海上保安部',     area:'第十管区（九州南）',  lat:33.233, lon:131.617, tel:'097-521-0118' },
+    // 第十一管区（沖縄）
+    { name:'那覇海上保安部',     area:'第十一管区（沖縄）',  lat:26.200, lon:127.667, tel:'098-863-0118' },
+    { name:'石垣海上保安部',     area:'第十一管区（沖縄）',  lat:24.333, lon:124.150, tel:'0980-82-0118' },
+    { name:'宮古海上保安部',     area:'第十一管区（沖縄）',  lat:24.800, lon:125.283, tel:'0980-72-0118' },
+];
+
+function calcDistKm(lat1, lon1, lat2, lon2) {
+    const R = 6371;
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a = Math.sin(dLat/2)**2 +
+              Math.cos(lat1 * Math.PI/180) * Math.cos(lat2 * Math.PI/180) * Math.sin(dLon/2)**2;
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+
+function openJCG() {
+    document.getElementById('jcg-overlay').style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+    renderJCGBody();
+}
+
+function closeJCG() {
+    document.getElementById('jcg-overlay').style.display = 'none';
+    document.body.style.overflow = '';
+}
+
+function closeJCGOverlay(e) {
+    if (e.target === document.getElementById('jcg-overlay')) closeJCG();
+}
+
+function renderJCGBody() {
+    const body = document.getElementById('jcg-body');
+    body.innerHTML = '<div class="jcg-loading">📡 現在地を取得中...</div>';
+
+    if (!navigator.geolocation) {
+        renderJCGFallback(body);
+        return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+        ({ coords: { latitude: lat, longitude: lon } }) => {
+            const sorted = JCG_STATIONS
+                .map(s => ({ ...s, dist: calcDistKm(lat, lon, s.lat, s.lon) }))
+                .sort((a, b) => a.dist - b.dist)
+                .slice(0, 3);
+
+            const cardsHTML = sorted.map((s, i) => `
+                <div class="jcg-card">
+                    <div class="jcg-rank">最寄り第${i+1}位</div>
+                    <div class="jcg-name">${s.name}</div>
+                    <div class="jcg-area">${s.area}</div>
+                    <div class="jcg-dist">📍 現在地から約 ${Math.round(s.dist)} km</div>
+                    <a href="tel:${s.tel.replace(/-/g,'')}" class="jcg-tel-btn">
+                        📞 ${s.tel}（代表）に電話
+                    </a>
+                </div>
+            `).join('');
+
+            body.innerHTML = `
+                <div class="jcg-list">
+                    ${cardsHTML}
+                </div>
+                <div class="jcg-note">
+                    ⚓ 海上での緊急通報は <strong>118番</strong>（海上保安庁・24時間対応）<br>
+                    上記電話番号は各保安部の代表番号です。緊急時は必ず118番を使用してください。
+                </div>`;
+        },
+        () => renderJCGFallback(body)
+    );
+}
+
+function renderJCGFallback(body) {
+    body.innerHTML = `
+        <div style="text-align:center;padding:16px 0 24px;">
+            <div style="font-size:40px;margin-bottom:12px;">🚢</div>
+            <div style="font-size:15px;font-weight:700;margin-bottom:8px;">位置情報を取得できませんでした</div>
+            <div style="font-size:13px;color:var(--muted);line-height:1.7;margin-bottom:24px;">
+                海上での緊急通報は <strong>118番</strong>（海上保安庁・24時間対応）
+            </div>
+            <a href="tel:118" style="display:block;padding:18px;background:#1e3a5f;color:#fff;border-radius:12px;font-size:22px;font-weight:700;text-decoration:none;text-align:center;">
+                📞 118番に発信
+            </a>
+        </div>
+        <div class="jcg-note">
+            位置情報が許可されると最寄り3拠点が表示されます。
+        </div>`;
+}
+
+// Escキーで両モーダル閉じる
+document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') {
+        closeDiagnosis();
+        closeJCG();
+    }
+});

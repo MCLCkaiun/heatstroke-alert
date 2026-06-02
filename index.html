@@ -108,7 +108,7 @@
         </div>
     </div>
 
-    <!-- アドバイス（ゲージ直下） -->
+    <!-- アドバイス -->
     <div class="advice-section">
         <div class="section-title">💡 対策アドバイス</div>
         <ul class="advice-list" id="advice-list"></ul>
@@ -130,6 +130,21 @@
         <p class="marine-note">※ 海域データは約25km格子の予報値です。陸上・内水面では取得できない場合があります。</p>
     </div>
 
+    <!-- アクションバー（PCはコンテンツ直下、SPは固定フッター） -->
+    <div class="action-bar" id="action-bar">
+        <button class="action-btn action-btn--red" onclick="openDiagnosis()">
+            熱中症と思ったら？
+        </button>
+        <a class="action-btn action-btn--blue"
+           href="https://www.iryou.teikyouseido.mhlw.go.jp/znk-web/juminkanja/S2300/initialize"
+           target="_blank" rel="noopener">
+            医療機関を探す
+        </a>
+        <button class="action-btn action-btn--navy" onclick="openJCG()">
+            海上保安庁に連絡
+        </button>
+    </div>
+
 </main>
 
 <footer>
@@ -144,6 +159,29 @@
         地名：<a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">© OpenStreetMap contributors</a>
     </div>
 </footer>
+
+<!-- ===== 熱中症診断モーダル ===== -->
+<div id="diagnosis-overlay" class="diag-overlay" style="display:none" onclick="closeDiagnosisOverlay(event)">
+    <div class="diag-modal">
+        <div class="diag-header">
+            <button class="diag-back" id="diag-back" onclick="diagBack()" style="visibility:hidden">&#8592; 戻る</button>
+            <span class="diag-header-title" id="diag-header-title">熱中症と思ったら？</span>
+            <button class="diag-close" onclick="closeDiagnosis()" aria-label="閉じる">✕</button>
+        </div>
+        <div class="diag-body" id="diag-body"></div>
+    </div>
+</div>
+
+<!-- ===== 海上保安庁モーダル ===== -->
+<div id="jcg-overlay" class="diag-overlay" style="display:none" onclick="closeJCGOverlay(event)">
+    <div class="diag-modal">
+        <div class="diag-header">
+            <span class="diag-header-title">海上保安庁　最寄り拠点</span>
+            <button class="diag-close" onclick="closeJCG()" aria-label="閉じる">✕</button>
+        </div>
+        <div class="diag-body" id="jcg-body"></div>
+    </div>
+</div>
 
 <script src="js/script.js"></script>
 </body>
