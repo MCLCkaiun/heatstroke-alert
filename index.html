@@ -46,7 +46,7 @@
             <span class="pin">📍</span>
             <div class="location-text">
                 <h2 id="place-name">取得中...</h2>
-                <p id="place-coords"></p>
+                <p id="place-coords" style="display:none"></p>
             </div>
         </div>
         <button class="btn-reload" id="btn-reload">🔄 更新</button>
@@ -87,6 +87,12 @@
         </div>
     </div>
 
+    <!-- 時間帯別予報 -->
+    <div class="forecast-section">
+        <div class="section-title">⏱ 時間帯別予報（本日）</div>
+        <div class="forecast-scroll" id="forecast-items"></div>
+    </div>
+
     <!-- ゲージ -->
     <div class="gauge-section">
         <div class="gauge-title">🌈 WBGT レベルゲージ</div>
@@ -122,12 +128,6 @@
             </div>
         </div>
         <p class="marine-note">※ 海域データは約25km格子の予報値です。陸上・内水面では取得できない場合があります。</p>
-    </div>
-
-    <!-- 時間帯別予報 -->
-    <div class="forecast-section">
-        <div class="section-title">⏱ 時間帯別予報（本日）</div>
-        <div class="forecast-scroll" id="forecast-items"></div>
     </div>
 
 </main>
