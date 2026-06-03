@@ -686,6 +686,9 @@ footer a { color: var(--muted); }
         z-index: 100;
     }
     main { padding-bottom: 88px; }
+    footer {
+    padding-bottom: calc(88px + env(safe-area-inset-bottom));
+    }
 }
 
 .action-btn {
