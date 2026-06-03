@@ -289,6 +289,7 @@ async function fetchWeather(lat, lon) {
         hourly: 'temperature_2m,relativehumidity_2m,windspeed_10m,winddirection_10m',
         forecast_days: 1,
         timezone: 'Asia/Tokyo',
+        wind_speed_unit: 'ms',
     });
     const res = await fetch(`${OPEN_METEO}?${params}`);
     if (!res.ok) throw new Error('API error');
