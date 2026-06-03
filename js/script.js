@@ -84,7 +84,12 @@ async function getPlaceName(lat, lon) {
         );
         const d = await res.json();
         const a = d.address || {};
-        const placeName = a.city || a.town || a.village || a.county || a.state || '現在地';
+        const display = d.display_name || '';
+        const parts = display.split(',').map(s => s.trim());
+        const filtered = parts.filter(p =>
+            p && !p.match(/^\d/) && p !== '日本' && !p.match(/^[A-Z]{2}-/)
+        );
+        const placeName = filtered.slice(-3).reverse().join('') || '現在地';
         return placeName;
     } catch { return '現在地'; }
 }
