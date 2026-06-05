@@ -5,15 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>熱中症リスクモニター</title>
     <link rel="stylesheet" href="css/style.css">
-    <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
-    <link rel="icon" type="image/png" sizes="96x96" href="favicon-96.png">
-    <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
 </head>
 <body>
 
 <header>
     <div class="header-left">
-        <img src="apple-touch-icon.png" alt="熱中症リスクモニター" class="icon" style="width:32px;height:32px;flex-shrink:0;">
+        <span class="icon">🌡️</span>
         <div>
             <h1>熱中症リスクモニター</h1>
             <p>現在地の暑さ指数（WBGT）をリアルタイム表示</p>
@@ -69,7 +66,12 @@
     <div class="metrics-grid">
         <div class="metric-card wbgt">
             <div class="metric-emoji">🌡️</div>
-            <div class="metric-label">暑さ指数 WBGT</div>
+            <div class="metric-label">
+                暑さ指数 WBGT
+                <span class="tooltip-wrap">
+                    <span class="tooltip-icon" data-tip="気温・湿度・日射を総合した熱中症リスク指数です。環境省・厚生労働省が採用する基準で、同じ気温でも湿度が高いほど高い値になります。※このツールの値は気温・湿度からの近似計算のため、日射の影響は含まれません。">?</span>
+                </span>
+            </div>
             <div class="metric-value" id="val-wbgt">--</div>
         </div>
         <div class="metric-card temp">
@@ -84,7 +86,12 @@
         </div>
         <div class="metric-card wind">
             <div class="metric-emoji">💨</div>
-            <div class="metric-label">風速 / 風向</div>
+            <div class="metric-label">
+                風速 / 風向
+                <span class="tooltip-wrap">
+                    <span class="tooltip-icon" data-tip="地上10mの風速・風向の予報値です。気象データはOpen-Meteoより取得しています。">?</span>
+                </span>
+            </div>
             <div class="metric-value" id="val-wind">--<span class="metric-unit">m/s</span></div>
             <div class="metric-sub" id="val-winddir">--</div>
         </div>
@@ -98,7 +105,12 @@
 
     <!-- ゲージ -->
     <div class="gauge-section">
-        <div class="gauge-title">🌈 WBGT レベルゲージ</div>
+        <div class="gauge-title">
+            🌈 WBGT レベルゲージ
+            <span class="tooltip-wrap">
+                <span class="tooltip-icon" data-tip="暑さ指数（WBGT）が5段階のどの位置にあるかを示します。針が右に進むほど危険度が高くなります。緑（安全）→ 黄（注意）→ オレンジ（警戒）→ 赤（厳重警戒）→ 紫（危険）">?</span>
+            </span>
+        </div>
         <div class="gauge-track">
             <div class="gauge-needle" id="gauge-needle" style="left:0%"></div>
         </div>
@@ -122,7 +134,12 @@
         <div class="section-title" id="marine-title">🌊 波浪情報（現在地付近の港湾）</div>
         <div class="marine-grid marine-grid-2">
             <div class="marine-card">
-                <div class="marine-label">うねり高</div>
+                <div class="marine-label">
+                    うねり高
+                    <span class="tooltip-wrap">
+                        <span class="tooltip-icon" data-tip="現在地から最も近い港の海上予報値です（約25km格子）。陸上にいても最寄り港を基準に表示しています。全国129の重要港湾・国際拠点港湾から直線距離で最も近い港を自動選択しています。" data-port-btn="true">?</span>
+                    </span>
+                </div>
                 <div class="marine-value" id="val-swell-height">--</div>
             </div>
             <div class="marine-card">
@@ -130,7 +147,6 @@
                 <div class="marine-dir" id="val-swell-dir">--</div>
             </div>
         </div>
-        <p class="marine-note">※ 海域データは約25km格子の予報値です。陸上・内水面では取得できない場合があります。</p>
     </div>
 
     <!-- アクションバー（PCはコンテンツ直下、SPは固定フッター） -->
@@ -187,5 +203,19 @@
 </div>
 
 <script src="js/script.js"></script>
+
+<!-- ツールチップポップアップ -->
+<div id="tooltip-popup"></div>
+
+<!-- ===== 港湾一覧モーダル ===== -->
+<div id="port-overlay" class="port-overlay" style="display:none" onclick="closePortModal(event)">
+    <div class="port-modal">
+        <div class="port-modal-header">
+            <span class="port-modal-title">⚓ 対象港湾一覧（129港）</span>
+            <button class="port-modal-close" onclick="document.getElementById('port-overlay').style.display='none'">✕</button>
+        </div>
+        <div class="port-modal-body" id="port-modal-body"></div>
+    </div>
+</div>
 </body>
 </html>

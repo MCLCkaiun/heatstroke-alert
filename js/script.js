@@ -878,3 +878,164 @@ document.addEventListener('keydown', e => {
         closeJCG();
     }
 });
+// =============================================
+// ツールチップ（fixed ポップアップ方式）
+// =============================================
+document.addEventListener('DOMContentLoaded', function() {
+(function() {
+    const popup = document.getElementById('tooltip-popup');
+    let currentIcon = null;
+
+    function showTooltip(icon) {
+        const text = icon.getAttribute('data-tip');
+        if (!text) return;
+        popup.textContent = text;
+
+        // 港湾一覧ボタンがある場合はリンクを追記
+        if (icon.getAttribute('data-port-btn')) {
+            const link = document.createElement('span');
+            link.textContent = '⚓ 港湾一覧を見る →';
+            link.style.cssText = 'display:block;margin-top:8px;color:#7dd3fc;cursor:pointer;font-weight:600;';
+            link.addEventListener('click', () => { hideTooltip(); openPortModal(); });
+            popup.appendChild(link);
+        }
+
+        popup.style.display = 'block';
+        requestAnimationFrame(() => positionTooltip(icon));  // レンダリング後に座標確定
+        icon.classList.add('active');
+        currentIcon = icon;
+    }
+
+    function hideTooltip() {
+        popup.style.display = 'none';
+        if (currentIcon) { currentIcon.classList.remove('active'); currentIcon = null; }
+    }
+
+    function positionTooltip(icon) {
+        const rect = icon.getBoundingClientRect();
+        const pw = 240;
+        const margin = 8;
+
+        // 左右位置：画面端に収まるよう調整
+        let left = rect.left + rect.width / 2 - pw / 2;
+        if (left < margin) left = margin;
+        if (left + pw > window.innerWidth - margin) left = window.innerWidth - pw - margin;
+
+        // 上下：上に出す、収まらなければ下に出す
+        const popH = popup.offsetHeight || 120;
+        let top;
+        if (rect.top - popH - margin > 0) {
+            top = rect.top - popH - margin;
+            popup.classList.remove('below');
+        } else {
+            top = rect.bottom + margin;
+            popup.classList.add('below');
+        }
+
+        popup.style.left = left + 'px';
+        popup.style.top  = top  + 'px';
+        popup.style.width = pw + 'px';
+    }
+
+    let hideTimer = null;
+
+    function scheduleHide() {
+        hideTimer = setTimeout(hideTooltip, 120);
+    }
+    function cancelHide() {
+        if (hideTimer) { clearTimeout(hideTimer); hideTimer = null; }
+    }
+
+    // PCはhover、SPはtap
+    document.querySelectorAll('.tooltip-icon').forEach(icon => {
+        icon.addEventListener('mouseenter', () => { cancelHide(); showTooltip(icon); });
+        icon.addEventListener('mouseleave', scheduleHide);
+        icon.addEventListener('click', e => {
+            e.stopPropagation();
+            if (currentIcon === icon) { hideTooltip(); return; }
+            showTooltip(icon);
+        });
+    });
+
+    popup.addEventListener('mouseenter', cancelHide);
+    popup.addEventListener('mouseleave', scheduleHide);
+
+    // 他の場所をタップで閉じる
+    document.addEventListener('click', () => hideTooltip());
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') hideTooltip(); });
+})();
+}); // DOMContentLoaded
+
+// =============================================
+// 港湾一覧モーダル
+// =============================================
+function openPortModal() {
+    const body = document.getElementById('port-modal-body');
+
+    // 地域ごとに分類
+    const regions = [
+        { name:'北海道', prefs:['北海道'] },
+        { name:'東北',   prefs:['青森県','岩手県','宮城県','秋田県','山形県','福島県'] },
+        { name:'関東',   prefs:['茨城県','千葉県','東京都','神奈川県'] },
+        { name:'北陸・新潟', prefs:['新潟県','富山県','石川県','福井県'] },
+        { name:'東海',   prefs:['静岡県','愛知県','三重県'] },
+        { name:'近畿',   prefs:['京都府','大阪府','兵庫県','和歌山県'] },
+        { name:'中国',   prefs:['鳥取県','島根県','岡山県','広島県','山口県'] },
+        { name:'四国',   prefs:['徳島県','香川県','愛媛県','高知県'] },
+        { name:'九州',   prefs:['福岡県','佐賀県','長崎県','熊本県','大分県','宮崎県','鹿児島県'] },
+        { name:'沖縄',   prefs:['沖縄県'] },
+    ];
+
+    // 港名と都道府県の対応マップを生成
+    const portsByRegion = regions.map(r => ({ name: r.name, ports: [] }));
+
+    SEA_AREAS.forEach(port => {
+        // 座標から都道府県を大まかに判定（緯度経度ベース）
+        const lat = port.lat, lon = port.lon;
+        let regionName = '九州'; // デフォルト
+
+        if (lat >= 41.4) regionName = '北海道';
+        else if (lat >= 37.8 && lon >= 139.5) regionName = '東北';
+        else if (lat >= 39.0 && lon < 141.5) regionName = '東北';
+        else if (lat >= 35.4 && lat < 37.8 && lon >= 139.0 && lon <= 141.0) regionName = '関東';
+        else if (lat >= 35.0 && lat < 37.8 && lon >= 136.5 && lon < 139.0) regionName = '北陸・新潟';
+        else if (lat >= 34.5 && lat < 35.5 && lon >= 136.5) regionName = '東海';
+        else if (lat >= 33.5 && lat < 35.5 && lon >= 134.5 && lon < 136.5) regionName = '近畿';
+        else if (lat >= 34.0 && lat < 35.5 && lon >= 131.0 && lon < 134.5) regionName = '中国';
+        else if (lat >= 33.0 && lat < 34.5 && lon >= 132.5 && lon < 135.0) regionName = '四国';
+        else if (lat >= 24.0 && lat < 27.5 && lon < 131.0) regionName = '沖縄';
+        else if (lat >= 28.0 && lat < 32.0 && lon >= 129.0 && lon < 132.0) regionName = '九州';
+        else if (lat >= 32.0 && lat < 34.5 && lon >= 128.0 && lon < 132.0) regionName = '九州';
+
+        const region = portsByRegion.find(r => r.name === regionName);
+        if (region) region.ports.push(port.name);
+        else portsByRegion[portsByRegion.length - 1].ports.push(port.name);
+    });
+
+    body.innerHTML = portsByRegion.map(r => r.ports.length === 0 ? '' : `
+        <div class="port-region">
+            <div class="port-region-name">${r.name}（${r.ports.length}港）</div>
+            <div class="port-list">
+                ${r.ports.map(p => `<span class="port-tag">${p}</span>`).join('')}
+            </div>
+        </div>
+    `).join('') + `<p class="port-modal-note">※ 国土交通省の重要港湾・国際拠点港湾・国際戦略港湾を収録しています（129港）。現在地から最も近い港の座標をもとに波浪予報を取得します。</p>`;
+
+    document.getElementById('port-overlay').style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+}
+
+function closePortModal(e) {
+    if (e.target === document.getElementById('port-overlay')) {
+        document.getElementById('port-overlay').style.display = 'none';
+        document.body.style.overflow = '';
+    }
+}
+
+// Escキーで港湾モーダルも閉じる
+document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') {
+        document.getElementById('port-overlay').style.display = 'none';
+        document.body.style.overflow = '';
+    }
+});
