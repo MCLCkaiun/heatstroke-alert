@@ -397,7 +397,7 @@ function renderApp(data, marine, lat, lon, placeName, seaName) {
         const marineTitleEl = document.getElementById('marine-title');
         if (marineTitleEl) {
             marineTitleEl.innerHTML = seaName
-                ? `<span class="marine-port-sub">🌊 最寄りの港</span><span class="marine-port-name">${seaName} <span class="marine-port-inline">の波浪情報</span></span>`
+                ? `<span class="marine-port-sub">🌊 最寄りの港 <span class="tooltip-wrap"><span class="tooltip-icon" data-tip="現在地から最も近い港の海上予報値です（約25km格子）。陸上にいても最寄り港を基準に表示しています。全国133の重要港湾・国際拠点港湾から直線距離で最も近い港を自動選択しています。" data-port-btn="true">?</span></span></span><span class="marine-port-name">${seaName} <span class="marine-port-inline">の波浪情報</span></span>`
                 : `<span class="marine-port-sub">🌊 波浪情報（現在地付近の海域）</span>`;
         }
 
@@ -452,6 +452,11 @@ function renderApp(data, marine, lat, lon, placeName, seaName) {
 
     document.getElementById('last-update').textContent =
         `最終更新：${now.toLocaleTimeString('ja-JP')}`;
+
+    // marine-titleに動的に追加されたツールチップアイコンにイベントを登録
+    document.querySelectorAll('#marine-title .tooltip-icon').forEach(icon => {
+        if (window._ttRegister) window._ttRegister(icon);
+    });
 }
 
 // エラー表示
@@ -889,43 +894,51 @@ document.addEventListener('DOMContentLoaded', function() {
 (function() {
     const popup = document.getElementById('tooltip-popup');
     let currentIcon = null;
+    let hideTimer = null;
+    const isTouchDevice = () => window.matchMedia('(hover: none)').matches;
 
     function showTooltip(icon) {
+        cancelHide();
         const text = icon.getAttribute('data-tip');
         if (!text) return;
         popup.textContent = text;
 
-        // 港湾一覧ボタンがある場合はリンクを追記
         if (icon.getAttribute('data-port-btn')) {
             const link = document.createElement('span');
             link.textContent = '⚓ 港湾一覧を見る →';
             link.style.cssText = 'display:block;margin-top:8px;color:#7dd3fc;cursor:pointer;font-weight:600;';
-            link.addEventListener('click', () => { hideTooltip(); openPortModal(); });
+            link.addEventListener('click', e => { e.stopPropagation(); hideTooltip(); openPortModal(); });
+            link.addEventListener('touchend', e => { e.stopPropagation(); hideTooltip(); openPortModal(); });
             popup.appendChild(link);
         }
 
         popup.style.display = 'block';
-        requestAnimationFrame(() => positionTooltip(icon));  // レンダリング後に座標確定
+        requestAnimationFrame(() => positionTooltip(icon));
         icon.classList.add('active');
         currentIcon = icon;
     }
 
     function hideTooltip() {
+        clearTimeout(hideTimer);
+        hideTimer = null;
         popup.style.display = 'none';
         if (currentIcon) { currentIcon.classList.remove('active'); currentIcon = null; }
+    }
+
+    function scheduleHide() {
+        hideTimer = setTimeout(hideTooltip, 150);
+    }
+    function cancelHide() {
+        if (hideTimer) { clearTimeout(hideTimer); hideTimer = null; }
     }
 
     function positionTooltip(icon) {
         const rect = icon.getBoundingClientRect();
         const pw = 240;
         const margin = 8;
-
-        // 左右位置：画面端に収まるよう調整
         let left = rect.left + rect.width / 2 - pw / 2;
         if (left < margin) left = margin;
         if (left + pw > window.innerWidth - margin) left = window.innerWidth - pw - margin;
-
-        // 上下：上に出す、収まらなければ下に出す
         const popH = popup.offsetHeight || 120;
         let top;
         if (rect.top - popH - margin > 0) {
@@ -935,38 +948,48 @@ document.addEventListener('DOMContentLoaded', function() {
             top = rect.bottom + margin;
             popup.classList.add('below');
         }
-
         popup.style.left = left + 'px';
         popup.style.top  = top  + 'px';
         popup.style.width = pw + 'px';
     }
 
-    let hideTimer = null;
+    function registerIcon(icon) {
+        if (icon._tipRegistered) return;
+        icon._tipRegistered = true;
 
-    function scheduleHide() {
-        hideTimer = setTimeout(hideTooltip, 120);
-    }
-    function cancelHide() {
-        if (hideTimer) { clearTimeout(hideTimer); hideTimer = null; }
-    }
-
-    // PCはhover、SPはtap
-    document.querySelectorAll('.tooltip-icon').forEach(icon => {
+        // PC（hover）
         icon.addEventListener('mouseenter', () => { cancelHide(); showTooltip(icon); });
         icon.addEventListener('mouseleave', scheduleHide);
-        icon.addEventListener('click', e => {
+
+        // SP（touch）
+        icon.addEventListener('touchend', e => {
+            e.preventDefault();
             e.stopPropagation();
-            if (currentIcon === icon) { hideTooltip(); return; }
-            showTooltip(icon);
+            if (currentIcon === icon) { hideTooltip(); } else { showTooltip(icon); }
         });
-    });
+    }
+
+    document.querySelectorAll('.tooltip-icon').forEach(registerIcon);
 
     popup.addEventListener('mouseenter', cancelHide);
     popup.addEventListener('mouseleave', scheduleHide);
 
-    // 他の場所をタップで閉じる
-    document.addEventListener('click', () => hideTooltip());
+    // ポップアップ外タップで閉じる（touchstart使用、clickは使わない）
+    document.addEventListener('touchstart', e => {
+        if (currentIcon && !popup.contains(e.target) && !currentIcon.contains(e.target)) {
+            hideTooltip();
+        }
+    }, { passive: true });
+
     document.addEventListener('keydown', e => { if (e.key === 'Escape') hideTooltip(); });
+
+    // renderApp後に動的追加されるアイコン用にwindow経由で公開
+    window._ttShow = showTooltip;
+    window._ttScheduleHide = scheduleHide;
+    window._ttToggle = (icon) => {
+        if (currentIcon === icon) { hideTooltip(); } else { showTooltip(icon); }
+    };
+    window._ttRegister = registerIcon;
 })();
 }); // DOMContentLoaded
 
