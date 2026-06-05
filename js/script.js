@@ -392,9 +392,9 @@ function renderApp(data, marine, lat, lon, placeName, seaName) {
         // 海域名をタイトルに表示
         const marineTitleEl = document.getElementById('marine-title');
         if (marineTitleEl) {
-            marineTitleEl.textContent = seaName
-                ? `🌊 波浪情報（${seaName}）`
-                : '🌊 波浪情報（現在地付近の海域）';
+            marineTitleEl.innerHTML = seaName
+                ? `<span class="marine-port-sub">🌊 最寄りの港</span><span class="marine-port-name">${seaName} <span class="marine-port-inline">の波浪情報</span></span>`
+                : `<span class="marine-port-sub">🌊 波浪情報（現在地付近の海域）</span>`;
         }
 
         // うねりのみ表示
