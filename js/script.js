@@ -231,6 +231,8 @@ const SEA_AREAS = [
     { name: '坂出港',         lat: 34.317, lon: 133.867 },
     // ===== 愛媛県 =====
     { name: '松山港',         lat: 33.833, lon: 132.717 },
+    { name: '松前港',         lat: 33.7864, lon: 132.6922 },
+    { name: '三瓶港',         lat: 33.3814, lon: 132.4180 },
     { name: '三島川之江港',   lat: 33.983, lon: 133.517 },
     { name: '宇和島港',       lat: 33.217, lon: 132.567 },
     { name: '今治港',         lat: 34.067, lon: 133.000 },
@@ -974,45 +976,20 @@ document.addEventListener('DOMContentLoaded', function() {
 function openPortModal() {
     const body = document.getElementById('port-modal-body');
 
-    // 地域ごとに分類
-    const regions = [
-        { name:'北海道', prefs:['北海道'] },
-        { name:'東北',   prefs:['青森県','岩手県','宮城県','秋田県','山形県','福島県'] },
-        { name:'関東',   prefs:['茨城県','千葉県','東京都','神奈川県'] },
-        { name:'北陸・新潟', prefs:['新潟県','富山県','石川県','福井県'] },
-        { name:'東海',   prefs:['静岡県','愛知県','三重県'] },
-        { name:'近畿',   prefs:['京都府','大阪府','兵庫県','和歌山県'] },
-        { name:'中国',   prefs:['鳥取県','島根県','岡山県','広島県','山口県'] },
-        { name:'四国',   prefs:['徳島県','香川県','愛媛県','高知県'] },
-        { name:'九州',   prefs:['福岡県','佐賀県','長崎県','熊本県','大分県','宮崎県','鹿児島県'] },
-        { name:'沖縄',   prefs:['沖縄県'] },
-    ];
+    const regionMap = {
+        '北海道': ['室蘭港','苫小牧港','函館港','小樽港','釧路港','留萌港','稚内港','十勝港','石狩湾新港','紋別港','網走港','根室港'],
+        '東北':   ['青森港','むつ小川原港','八戸港','久慈港','宮古港','釜石港','大船渡港','仙台港','塩釜港','石巻港','能代港','船川港','秋田港','酒田港','相馬港','小名浜港'],
+        '関東':   ['鹿島港','常陸那珂港','日立港','大洗港','千葉港','木更津港','東京港','横浜港','川崎港','横須賀港'],
+        '北陸・新潟': ['新潟西港','新潟東港','直江津港','両津港','小木港','伏木富山港','金沢港','七尾港','敦賀港'],
+        '東海':   ['清水港','田子の浦港','御前崎港','名古屋港','三河港','衣浦港','四日市港','津松阪港','尾鷲港'],
+        '近畿':   ['舞鶴港','大阪港','堺泉北港','阪南港','神戸港','姫路港','尼崎西宮芦屋港','尼崎港','東播磨港','和歌山下津港','日高港'],
+        '中国':   ['鳥取港','境港','西郷港','浜田港','三隅港','水島港','岡山港','宇野港','広島港','福山港','尾道糸崎港','呉港','下関港','徳山下松港','岩国港','三田尻中関港','宇部港','小野田港'],
+        '四国':   ['徳島小松島港','橘港','高松港','坂出港','松山港','松前港','三瓶港','三島川之江港','宇和島港','今治港','新居浜港','東予港','高知港','須崎港','宿毛湾港'],
+        '九州':   ['北九州港','黒崎港','博多港','苅田港','三池港','唐津港','伊万里港','長崎港','佐世保港','厳原港','郷ノ浦港','福江港','熊本港','八代港','三角港','別府港','大分港','佐伯港','中津港','津久見港','宮崎港','細島港','油津港','鹿児島港','志布志港','川内港','西之表港','名瀬港'],
+        '沖縄':   ['那覇港','中城湾港','平良港','石垣港','金武湾港'],
+    };
 
-    // 港名と都道府県の対応マップを生成
-    const portsByRegion = regions.map(r => ({ name: r.name, ports: [] }));
-
-    SEA_AREAS.forEach(port => {
-        // 座標から都道府県を大まかに判定（緯度経度ベース）
-        const lat = port.lat, lon = port.lon;
-        let regionName = '九州'; // デフォルト
-
-        if (lat >= 41.4) regionName = '北海道';
-        else if (lat >= 37.8 && lon >= 139.5) regionName = '東北';
-        else if (lat >= 39.0 && lon < 141.5) regionName = '東北';
-        else if (lat >= 35.4 && lat < 37.8 && lon >= 139.0 && lon <= 141.0) regionName = '関東';
-        else if (lat >= 35.0 && lat < 37.8 && lon >= 136.5 && lon < 139.0) regionName = '北陸・新潟';
-        else if (lat >= 34.5 && lat < 35.5 && lon >= 136.5) regionName = '東海';
-        else if (lat >= 33.5 && lat < 35.5 && lon >= 134.5 && lon < 136.5) regionName = '近畿';
-        else if (lat >= 34.0 && lat < 35.5 && lon >= 131.0 && lon < 134.5) regionName = '中国';
-        else if (lat >= 33.0 && lat < 34.5 && lon >= 132.5 && lon < 135.0) regionName = '四国';
-        else if (lat >= 24.0 && lat < 27.5 && lon < 131.0) regionName = '沖縄';
-        else if (lat >= 28.0 && lat < 32.0 && lon >= 129.0 && lon < 132.0) regionName = '九州';
-        else if (lat >= 32.0 && lat < 34.5 && lon >= 128.0 && lon < 132.0) regionName = '九州';
-
-        const region = portsByRegion.find(r => r.name === regionName);
-        if (region) region.ports.push(port.name);
-        else portsByRegion[portsByRegion.length - 1].ports.push(port.name);
-    });
+    const portsByRegion = Object.entries(regionMap).map(([name, ports]) => ({ name, ports }));
 
     body.innerHTML = portsByRegion.map(r => r.ports.length === 0 ? '' : `
         <div class="port-region">
@@ -1021,7 +998,7 @@ function openPortModal() {
                 ${r.ports.map(p => `<span class="port-tag">${p}</span>`).join('')}
             </div>
         </div>
-    `).join('') + `<p class="port-modal-note">※ 国土交通省の重要港湾・国際拠点港湾・国際戦略港湾を収録しています（131港）。現在地から最も近い港の座標をもとに波浪予報を取得します。</p>`;
+    `).join('') + `<p class="port-modal-note">※ 国土交通省の重要港湾・国際拠点港湾・国際戦略港湾を収録しています（133港）。現在地から最も近い港の座標をもとに波浪予報を取得します。</p>`;
 
     document.getElementById('port-overlay').style.display = 'flex';
     document.body.style.overflow = 'hidden';
