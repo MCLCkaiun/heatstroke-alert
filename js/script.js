@@ -195,6 +195,7 @@ const SEA_AREAS = [
     { name: '神戸港',         lat: 34.683, lon: 135.183 },
     { name: '姫路港',         lat: 34.800, lon: 134.683 },
     { name: '尼崎西宮芦屋港', lat: 34.717, lon: 135.383 },
+    { name: '尼崎港',         lat: 34.6865, lon: 135.3818 },
     { name: '東播磨港',       lat: 34.717, lon: 134.917 },
     // ===== 和歌山県 =====
     { name: '和歌山下津港',   lat: 34.183, lon: 135.183 },
@@ -241,6 +242,7 @@ const SEA_AREAS = [
     { name: '宿毛湾港',       lat: 32.933, lon: 132.733 },
     // ===== 福岡県 =====
     { name: '北九州港',       lat: 33.883, lon: 130.867 },
+    { name: '黒崎港',         lat: 33.8776, lon: 130.7749 },
     { name: '博多港',         lat: 33.600, lon: 130.400 },
     { name: '苅田港',         lat: 33.967, lon: 130.983 },
     { name: '三池港',         lat: 33.017, lon: 130.433 },
@@ -1019,7 +1021,7 @@ function openPortModal() {
                 ${r.ports.map(p => `<span class="port-tag">${p}</span>`).join('')}
             </div>
         </div>
-    `).join('') + `<p class="port-modal-note">※ 国土交通省の重要港湾・国際拠点港湾・国際戦略港湾を収録しています（129港）。現在地から最も近い港の座標をもとに波浪予報を取得します。</p>`;
+    `).join('') + `<p class="port-modal-note">※ 国土交通省の重要港湾・国際拠点港湾・国際戦略港湾を収録しています（131港）。現在地から最も近い港の座標をもとに波浪予報を取得します。</p>`;
 
     document.getElementById('port-overlay').style.display = 'flex';
     document.body.style.overflow = 'hidden';
