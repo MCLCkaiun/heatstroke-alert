@@ -1,6 +1,10 @@
 const OPEN_METEO = 'https://api.open-meteo.com/v1/forecast';
 const OPEN_METEO_MARINE = 'https://marine-api.open-meteo.com/v1/marine';
 
+// 現在表示中の座標（GPS・地図選択共通）
+let currentLat = null;
+let currentLon = null;
+
 // 風向・波向を16方位に変換
 function degToDir(deg) {
     if (deg === null || deg === undefined) return '不明';
@@ -482,6 +486,7 @@ async function loadData() {
     navigator.geolocation.getCurrentPosition(
         async ({ coords: { latitude: lat, longitude: lon } }) => {
             try {
+                currentLat = lat; currentLon = lon;
                 const seaName = getNearestSeaName(lat, lon);
                 const [weatherData, marineData, placeName] = await Promise.all([
                     fetchWeather(lat, lon),
@@ -824,6 +829,38 @@ function closeJCGOverlay(e) {
 
 function renderJCGBody() {
     const body = document.getElementById('jcg-body');
+
+    // 地図選択またはGPS取得済みの座標があればそれを使う
+    if (currentLat !== null && currentLon !== null) {
+        const sorted = JCG_STATIONS
+            .map(s => ({ ...s, dist: calcDistKm(currentLat, currentLon, s.lat, s.lon) }))
+            .sort((a, b) => a.dist - b.dist)
+            .slice(0, 3);
+
+        const cardsHTML = sorted.map((s, i) => `
+            <div class="jcg-card">
+                <div class="jcg-rank">最寄り第${i+1}位</div>
+                <div class="jcg-name">${s.name}</div>
+                <div class="jcg-area">${s.area}</div>
+                <div class="jcg-dist">📍 現在地から約 ${Math.round(s.dist)} km</div>
+                <a href="tel:${s.tel.replace(/-/g,'')}" class="jcg-tel-btn">
+                    📞 ${s.tel}（代表）に電話
+                </a>
+            </div>
+        `).join('');
+
+        body.innerHTML = `
+            <div class="jcg-list">
+                ${cardsHTML}
+            </div>
+            <div class="jcg-note">
+                ⚓ 海上での緊急通報は <strong>118番</strong>（海上保安庁・24時間対応）<br>
+                上記電話番号は各保安部の代表番号です。緊急時は必ず118番を使用してください。
+            </div>`;
+        return;
+    }
+
+    // 座標未取得の場合はGPSから取得
     body.innerHTML = '<div class="jcg-loading">📡 現在地を取得中...</div>';
 
     if (!navigator.geolocation) {
@@ -833,6 +870,7 @@ function renderJCGBody() {
 
     navigator.geolocation.getCurrentPosition(
         ({ coords: { latitude: lat, longitude: lon } }) => {
+            currentLat = lat; currentLon = lon;
             const sorted = JCG_STATIONS
                 .map(s => ({ ...s, dist: calcDistKm(lat, lon, s.lat, s.lon) }))
                 .sort((a, b) => a.dist - b.dist)
@@ -1097,6 +1135,7 @@ function closeMapModal(e) {
 
 // 指定座標でデータ取得（GPS不使用）
 async function loadDataFromCoords(lat, lon) {
+    currentLat = lat; currentLon = lon;
     document.getElementById('loading').style.display = 'flex';
     document.getElementById('app').style.display = 'none';
     document.getElementById('error').style.display = 'none';
