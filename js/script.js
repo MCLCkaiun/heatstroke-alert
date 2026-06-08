@@ -369,7 +369,7 @@ function renderApp(data, marine, lat, lon, placeName, seaName) {
     const hero = document.getElementById('hero-alert');
     hero.className = `hero-alert hero-${level.key}`;
     document.getElementById('hero-icon').textContent  = level.icon;
-    document.getElementById('hero-label').textContent = `現在の熱中症危険度 — WBGT ${wbgt.toFixed(1)}°C`;
+    document.getElementById('hero-label').textContent = `現在の熱中症危険度 — WBGT ${wbgt.toFixed(1)}`;
     document.getElementById('hero-level').textContent = level.label;
     document.getElementById('hero-desc').textContent  = level.desc;
 
