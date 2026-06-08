@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>熱中症リスクモニター</title>
     <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 </head>
 <body>
 
@@ -48,6 +49,10 @@
                 <h2 id="place-name">取得中...</h2>
                 <p id="place-coords" style="display:none"></p>
             </div>
+            <button class="btn-map" id="btn-map" title="場所を選んで調べる">🗾</button>
+            <span class="tooltip-wrap">
+                <span class="tooltip-icon" data-tip="🗾 地図ボタンをタップすると日本地図が開き、調べたい場所をタップ・クリックで選択できます。選んだ場所の熱中症リスクや気象データを表示します。&#10;&#10;🔄 更新ボタンを押すとGPSで現在地に戻ります。">?</span>
+            </span>
         </div>
         <button class="btn-reload" id="btn-reload">🔄 更新</button>
     </div>
@@ -197,10 +202,23 @@
     </div>
 </div>
 
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="js/script.js"></script>
 
 <!-- ツールチップポップアップ -->
 <div id="tooltip-popup"></div>
+
+<!-- ===== 地図モーダル ===== -->
+<div id="map-overlay" class="map-overlay" style="display:none" onclick="closeMapModal(event)">
+    <div class="map-modal">
+        <div class="map-modal-header">
+            <span class="map-modal-title">🗾 場所を選んで調べる</span>
+            <button class="map-modal-close" onclick="closeMapModal()">✕</button>
+        </div>
+        <div class="map-modal-hint">地図をタップ・クリックして場所を選んでください</div>
+        <div id="leaflet-map"></div>
+    </div>
+</div>
 
 <!-- ===== 港湾一覧モーダル ===== -->
 <div id="port-overlay" class="port-overlay" style="display:none" onclick="closePortModal(event)">

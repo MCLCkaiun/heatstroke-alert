@@ -1041,3 +1041,85 @@ document.addEventListener('keydown', e => {
         document.body.style.overflow = '';
     }
 });
+
+// =============================================
+// 地図モーダル（Leaflet.js）
+// =============================================
+let leafletMap = null;
+let mapMarker = null;
+
+function openMapModal() {
+    document.getElementById('map-overlay').style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+
+    // 初回のみ地図を初期化
+    if (!leafletMap) {
+        leafletMap = L.map('leaflet-map', {
+            center: [36.5, 136.0],  // 本州中央付近
+            zoom: 5,
+            zoomControl: true,
+        });
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+            maxZoom: 18,
+        }).addTo(leafletMap);
+
+        // クリック・タップで場所を選択
+        leafletMap.on('click', function(e) {
+            const { lat, lng } = e.latlng;
+            selectMapLocation(lat, lng);
+        });
+    } else {
+        // 再表示時にサイズを再計算
+        setTimeout(() => leafletMap.invalidateSize(), 100);
+    }
+}
+
+function selectMapLocation(lat, lng) {
+    // マーカーを更新
+    if (mapMarker) {
+        mapMarker.setLatLng([lat, lng]);
+    } else {
+        mapMarker = L.marker([lat, lng]).addTo(leafletMap);
+    }
+
+    // モーダルを閉じてデータ取得
+    closeMapModal();
+    loadDataFromCoords(lat, lng);
+}
+
+function closeMapModal(e) {
+    if (e && e.target !== document.getElementById('map-overlay') && e.type === 'click') return;
+    document.getElementById('map-overlay').style.display = 'none';
+    document.body.style.overflow = '';
+}
+
+// 指定座標でデータ取得（GPS不使用）
+async function loadDataFromCoords(lat, lon) {
+    document.getElementById('loading').style.display = 'flex';
+    document.getElementById('app').style.display = 'none';
+    document.getElementById('error').style.display = 'none';
+
+    try {
+        const seaName = getNearestSeaName(lat, lon);
+        const [weatherData, marineData, placeName] = await Promise.all([
+            fetchWeather(lat, lon),
+            fetchMarine(lat, lon),
+            getPlaceName(lat, lon)
+        ]);
+        renderApp(weatherData, marineData, lat, lon, placeName, seaName);
+    } catch {
+        showError('気象データの取得に失敗しました。しばらくしてから再試行してください。');
+    }
+}
+
+document.getElementById('btn-map').addEventListener('click', openMapModal);
+
+// Escで地図モーダルも閉じる
+document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') {
+        document.getElementById('map-overlay').style.display = 'none';
+        document.body.style.overflow = '';
+    }
+});
